@@ -1,6 +1,6 @@
 # Draft message for the PixelOS r8q maintainers
 
-Not sent. Edit freely, then paste it into the r8q_cloud chat or send it to the maintainers directly. Replace `<repo link>` with the GitHub link.
+Not sent. Edit freely, then paste it into the r8q_cloud chat or send it to the maintainers directly.
 
 ---
 
@@ -16,7 +16,7 @@ Hi! Thanks for the PixelOS 17 build for the S20 FE, it's been running great for 
 
 I did all of this as a KernelSU module so nothing on the system partition changed. It has boot-loop protection, and disabling the module undoes everything.
 
-**Everything is here:** <repo link>. It has the patch against upstream PhhIms (pinned commit), the module source, the overlay sources, a readme that explains how each part works, and a release zip if you want to try it on your own device. PhhIms is GPL-2.0, so the repo is too.
+**Everything is here:** https://github.com/buddi0812/r8q-volte-phhims. It has the patch against upstream PhhIms (pinned commit), the module source, the overlay sources, a readme that explains how each part works, and a release zip if you want to try it on your own device. PhhIms is GPL-2.0, so the repo is too.
 
 If you'd like to include it in the ROM, the readme has a short list of what the build needs. Happy to test builds, send logs, or answer questions. If anything looks wrong or I've misunderstood how your tree is set up, tell me and I'll fix it.
 
