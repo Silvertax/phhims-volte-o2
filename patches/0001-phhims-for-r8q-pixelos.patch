@@ -1,0 +1,164 @@
+diff --git a/app/build.gradle b/app/build.gradle
+index 81f83f6..523a5e1 100644
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -63,3 +63,10 @@ dependencies {
+     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.1'
+     testImplementation 'junit:junit:4.13.2'
+ }
++
++// Use the project's full platform stub jar for Java compilation too (SDK stubs hide MmTelFeature internals).
++afterEvaluate {
++    tasks.withType(JavaCompile).configureEach {
++        options.bootstrapClasspath = files("${projectDir}/libs/android.jar", "/path/to/android-sdk/platforms/android-33/android.jar")
++    }
++}
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 119bbbe..6f9147e 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -2,8 +2,7 @@
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+     package="me.phh.ims"
+     coreApp="true"
+-    android:persistent="true"
+-    android:sharedUserId="android.uid.system">
++    android:persistent="true">
+ 
+     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+     <uses-permission android:name="android.permission.WAKE_LOCK" />
+@@ -13,6 +12,11 @@
+     <uses-permission android:name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
+ 
+     <uses-permission android:name="android.permission.RECORD_AUDIO" />
++    <uses-permission android:name="android.permission.INTERNET" />
++    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
++    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
++    <uses-permission android:name="android.permission.CONNECTIVITY_USE_RESTRICTED_NETWORKS" />
++    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" />
+ 
+     <application
+         android:allowBackup="false"
+diff --git a/app/src/main/java/me/phh/ims/CompatExt.kt b/app/src/main/java/me/phh/ims/CompatExt.kt
+new file mode 100644
+index 0000000..d849ca1
+--- /dev/null
++++ b/app/src/main/java/me/phh/ims/CompatExt.kt
+@@ -0,0 +1,7 @@
++package me.phh.ims
++
++import android.telephony.NetworkRegistrationInfo
++
++// Compile-time jar predates NetworkRegistrationInfo.isNetworkRegistered; isRegistered() is equivalent.
++val NetworkRegistrationInfo.isNetworkRegistered: Boolean
++    get() = isRegistered
+diff --git a/app/src/main/java/me/phh/ims/PhhImsService.kt b/app/src/main/java/me/phh/ims/PhhImsService.kt
+index 228b9a7..73d6814 100644
+--- a/app/src/main/java/me/phh/ims/PhhImsService.kt
++++ b/app/src/main/java/me/phh/ims/PhhImsService.kt
+@@ -7,7 +7,9 @@ import android.content.Context
+ import android.content.Intent
+ import android.content.IntentFilter
+ import android.os.Binder
++import android.os.PersistableBundle
+ import android.os.SystemClock
++import android.telephony.CarrierConfigManager
+ import android.telephony.Rlog
+ import android.telephony.ims.ImsService
+ import android.telephony.ims.feature.MmTelFeature
+@@ -107,6 +109,28 @@ class PhhImsService : ImsService() {
+         feature.onSubscriptionChangedFromService(subscriptionId)
+     }
+ 
++    // The ROM's carrier config has no VoLTE flags for this carrier and its shell override command is blocked.
++    // MODIFY_PHONE_STATE (allowlisted) lets us set them once, persistently, when they are missing.
++    private fun ensureVolteCarrierConfig(subscriptionId: Int) {
++        try {
++            if (subscriptionId < 0) return
++            val ccm = getSystemService(CarrierConfigManager::class.java) ?: return
++            val current = ccm.getConfigForSubId(subscriptionId)
++            if (current != null && current.getBoolean(CarrierConfigManager.KEY_CARRIER_VOLTE_AVAILABLE_BOOL)) return
++            val overrides = PersistableBundle()
++            overrides.putBoolean(CarrierConfigManager.KEY_CARRIER_VOLTE_AVAILABLE_BOOL, true)
++            overrides.putBoolean(CarrierConfigManager.KEY_CARRIER_VOLTE_PROVISIONING_REQUIRED_BOOL, false)
++            overrides.putBoolean(CarrierConfigManager.KEY_HIDE_ENHANCED_4G_LTE_BOOL, false)
++            overrides.putBoolean(CarrierConfigManager.KEY_EDITABLE_ENHANCED_4G_LTE_BOOL, true)
++            overrides.putBoolean(CarrierConfigManager.KEY_ENHANCED_4G_LTE_ON_BY_DEFAULT_BOOL, true)
++            overrides.putBoolean(CarrierConfigManager.KEY_CARRIER_VT_AVAILABLE_BOOL, false)
++            ccm.overrideConfig(subscriptionId, overrides, true)
++            Rlog.i(TAG, "Applied persistent VoLTE carrier config override for subId=$subscriptionId")
++        } catch (e: Exception) {
++            Rlog.w(TAG, "Could not apply VoLTE carrier config override: $e")
++        }
++    }
++
+     override fun createMmTelFeatureForSubscription(
+         slotId: Int,
+         subscriptionId: Int,
+@@ -116,6 +140,8 @@ class PhhImsService : ImsService() {
+             "createMmTelFeatureForSubscription slotId=$slotId subscriptionId=$subscriptionId",
+         )
+ 
++        ensureVolteCarrierConfig(subscriptionId)
++
+         val existingFeature = synchronized(stateLock) { mmTelFeaturesBySlot[slotId] }
+         if (existingFeature != null) {
+             notifyFeatureSubscriptionChanged(
+diff --git a/app/src/main/java/me/phh/ims/PhhMmTelFeature.kt b/app/src/main/java/me/phh/ims/PhhMmTelFeature.kt
+index 97a728a..a97923d 100644
+--- a/app/src/main/java/me/phh/ims/PhhMmTelFeature.kt
++++ b/app/src/main/java/me/phh/ims/PhhMmTelFeature.kt
+@@ -1287,13 +1287,7 @@ sipHandler.imsFailureCallback = {
+             rememberIncomingCallConnectedReporter(incomingCallId) { connectedExtras ->
+                 incomingSession.reportConnected(connectedExtras)
+             }
+-            val frameworkCallListener = notifyIncomingCall(incomingSession, incomingSession.getCallId(), Bundle())
+-            if (frameworkCallListener != null) {
+-                incomingSession.setListener(frameworkCallListener)
+-            } else {
+-                Rlog.w(TAG, "Framework rejected incoming IMS call ${incomingSession.getCallId()}")
+-                forgetIncomingCallListener(incomingCallId)
+-            }
++            notifyIncomingCall(incomingSession, Bundle())
+         }
+         sipHandler.onIncomingCallConnected = { _: Object, extras: Map<String, String> ->
+             val callId = extras["call-id"]?.takeIf { it.isNotBlank() }
+diff --git a/app/src/main/java/me/phh/sip/CompatExt.kt b/app/src/main/java/me/phh/sip/CompatExt.kt
+new file mode 100644
+index 0000000..c3565c3
+--- /dev/null
++++ b/app/src/main/java/me/phh/sip/CompatExt.kt
+@@ -0,0 +1,7 @@
++package me.phh.sip
++
++import android.telephony.NetworkRegistrationInfo
++
++// Compile-time jar predates NetworkRegistrationInfo.isNetworkRegistered; isRegistered() is equivalent.
++val NetworkRegistrationInfo.isNetworkRegistered: Boolean
++    get() = isRegistered
+diff --git a/app/src/main/java/me/phh/sip/RegistrationCellInfoLogger.kt b/app/src/main/java/me/phh/sip/RegistrationCellInfoLogger.kt
+index 92fb77c..246ff44 100644
+--- a/app/src/main/java/me/phh/sip/RegistrationCellInfoLogger.kt
++++ b/app/src/main/java/me/phh/sip/RegistrationCellInfoLogger.kt
+@@ -10,7 +10,8 @@ import android.telephony.TelephonyManager
+ 
+ object RegistrationCellInfoLogger {
+     fun log(logTag: String, telephonyManager: TelephonyManager) {
+-        for (cell in telephonyManager.getAllCellInfo()) {
++        val cells = try { telephonyManager.getAllCellInfo() } catch (e: SecurityException) { return }
++        for (cell in cells ?: return) {
+             if (cell is CellInfoLte) {
+                 val cellSignalStrength = cell.cellSignalStrength
+                 Rlog.d(logTag, "LTE registration signalDbm=${cellSignalStrength.dbm}")
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index 82a458c..b09861b 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -1,6 +1,6 @@
+ #Fri Mar 17 00:19:58 CET 2023
+ distributionBase=GRADLE_USER_HOME
+-distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
++distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
+ distributionPath=wrapper/dists
+ zipStorePath=wrapper/dists
+ zipStoreBase=GRADLE_USER_HOME
