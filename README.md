@@ -1,6 +1,6 @@
 # PhhIms VoLTE for the Galaxy S20 FE (r8q) – o2 Germany
 
-KernelSU module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. This is a fork of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)**, adapted for **o2 Germany (Telefónica)**.
+KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. This is a fork of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)**, adapted for **o2 Germany (Telefónica)**.
 
 ## Credits
 
@@ -15,11 +15,12 @@ Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
 - **Seen later:** not every call went over VoLTE. Calls that don't use VoLTE fall back to 2G, where mobile data pauses for the duration of the call.
+- **Magisk:** not tested yet. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
 ## Requirements
 
 - Galaxy S20 FE Snapdragon (r8q) with a ROM on **Android 17** (the overlays are built with `minSdkVersion 37`)
-- Root with KernelSU
+- Root with KernelSU or Magisk (Magisk not tested yet, see Status)
 - Only **one** PhhIms/VoLTE module active at a time
 
 ## o2: add a dedicated IMS APN
@@ -34,11 +35,11 @@ On the tested ROM, the preset o2 APN `internet` also had the type `ims` and ther
 ## Installation
 
 1. Download `phhims_volte-v0.1-o2.zip` from [Releases](../../releases).
-2. KernelSU → Modules → Install → select the zip → reboot.
+2. KernelSU / Magisk → Modules → Install → select the zip → reboot.
 3. About a minute after boot, check `/data/adb/phhims-volte.log`: it should list the mounts and the PhhIms overlays, `IMS feature: declared`, your SIM's network code and a `carrier config` line ending in `true`.
 4. Turn on VoLTE under Settings → Network & internet → SIMs → your SIM, then test a call and an SMS.
 
-To uninstall, remove the module in KernelSU and reboot.
+To uninstall, remove the module in KernelSU / Magisk and reboot.
 
 ## Changes compared to buddi0812's v0.1 (2026-11-09)
 
