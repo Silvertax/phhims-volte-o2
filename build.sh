@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the three overlay APKs from overlays/ and packs the KernelSU module zip into dist/.
+# Builds the three overlay APKs from overlays/ and packs the module zip (KernelSU / Magisk) into dist/.
 #
 #   BUILD_TOOLS=~/Android/Sdk/build-tools/35.0.0 \
 #   ANDROID_JAR=~/Android/Sdk/platforms/android-33/android.jar \
