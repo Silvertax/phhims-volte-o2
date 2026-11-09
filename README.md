@@ -1,58 +1,72 @@
-# VoLTE + SMS-over-IMS on Galaxy S20 FE 5G (r8q) with PhhIms
+# PhhIms VoLTE for the Galaxy S20 FE (r8q) – o2 Germany
 
-Working VoLTE calls and IMS SMS on **Samsung Galaxy S20 FE 5G (SM-G781B, r8q)** running the unofficial
-**PixelOS 17** build (20261023) on **Airtel India**, using the open-source
-[PhhIms](https://github.com/krazey/ims) userspace IMS stack. No vendor IMS blobs are touched.
+KernelSU module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. This is a fork of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)**, adapted for **o2 Germany (Telefónica)**.
 
-Tested by me, once, on one phone and one SIM:
+## Credits
 
-- Registers on Airtel IMS (`REGISTER` → 401 AKA challenge → IPsec SAs → `200 OK`), MMTEL capabilities = voice + SMS.
-- Incoming and outgoing VoLTE calls connect, audio flows both ways (~76 s test call, mic uplink sent 3.8k RTP packets).
-- Mobile data keeps working during the call (call stays on LTE, no CS fallback).
-- SMS send and receive work.
-- Not working / not tried: Wi-Fi calling, video calls, other carriers, other devices, VoNR.
+- **[buddi0812](https://github.com/buddi0812)**: original module ([r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims) v0.1, made for Airtel India on PixelOS 17): the PhhIms patch for r8q, the KernelSU module and the overlays. Nearly everything here is his work; his README is kept as [ORIGINAL-README.md](ORIGINAL-README.md).
+- **PhhIms**: Pierre-Hugues Husson ([phhusson/ims](https://github.com/phhusson/ims)) and the [krazey/ims](https://github.com/krazey/ims) contributors
+- **o2 adaptation**: [Silvertax](https://github.com/Silvertax)
 
-## What was wrong (and what fixes it)
+## Status
 
-| Problem on this ROM | Fix |
-|---|---|
-| PhhIms is built as a platform-signed `android.uid.system` app; the ROM's platform key is private | Build it **without** `sharedUserId`, install as a **priv-app** and grant what it needs through a `privapp-permissions` allowlist (`READ_PRIVILEGED_PHONE_STATE`, `MODIFY_PHONE_STATE`, `CONNECTIVITY_USE_RESTRICTED_NETWORKS`, `SCHEDULE_EXACT_ALARM`). The ROM runs `ro.control_privapp_permissions=enforce`, so a mismatch bootloops; the allowlist must match the manifest. |
-| Telephony does not know a MMTEL provider exists | Runtime resource overlay (RRO) on `com.android.phone`: `config_ims_mmtel_package = me.phh.ims`. Overlay on `android`: `config_device_volte_available` / `config_carrier_volte_available` etc. |
-| Carrier config has no VoLTE flags for Airtel; the CarrierConfig app reads Airtel's config from its **assets** and ignores a `vendor.xml` overlay; `cmd phone cc` is blocked | PhhIms calls `CarrierConfigManager.overrideConfig(subId, bundle, persistent=true)` itself, once, when `carrier_volte_available_bool` is false (`ensureVolteCarrierConfig` in the patch). Needs `MODIFY_PHONE_STATE` from the allowlist. The `overlays/cc` vendor.xml overlay in this repo turned out to be unnecessary; it is harmless and can be dropped. |
-| Hidden API use | `hidden-api-whitelisted-app` sysconfig for `me.phh.ims` |
-| Runtime permissions | `default-permissions` XML for `RECORD_AUDIO`, `READ_PHONE_STATE` |
-| `NetworkRegistrationInfo.isNetworkRegistered` / `notifyIncomingCall(session, callId, extras)` do not exist in the stub jar PhhIms compiles against here | Small compat shims (`CompatExt.kt`, old `notifyIncomingCall(session, extras)` overload) |
-| `getAllCellInfo()` throws `SecurityException` without location permission | try/catch in `RegistrationCellInfoLogger` |
+Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud), KernelSU v3.3.1 in the kernel, SELinux enforcing, o2 Germany (262-07), with buddi0812's v0.1 plus a dedicated IMS APN.
 
-An IMS APN is required (`apn=ims`, `type=ims`, protocol IPV4V6; P-CSCF address comes from PCO). On my phone IMS registered over it, but I did not record whether it came from the ROM's APN list or from an entry I added by hand while debugging. If the logs show no IMS network request, check that this APN exists for your SIM.
+- **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
+- **Not available:** Wi-Fi calling, video calls
+- **Seen later:** not every call went over VoLTE. Calls that don't use VoLTE fall back to 2G, where mobile data pauses for the duration of the call.
 
-## How it is delivered: a KernelSU module, no system partition edits
+## Requirements
 
-The module (`module/`) mounts a small read-only overlayfs over `/system/priv-app`, `/system/etc/{permissions,sysconfig,default-permissions}`
-and `/product/overlay` in `post-fs-data.sh`, so nothing on the real partitions changes.
+- Galaxy S20 FE Snapdragon (r8q) with a ROM on **Android 17** (the overlays are built with `minSdkVersion 37`)
+- Root with KernelSU
+- Only **one** PhhIms/VoLTE module active at a time
 
-Things I had to learn the hard way:
+## o2: add a dedicated IMS APN
 
-- overlayfs rejects lowerdirs that live on `/data`, so the files are first copied to a tmpfs (`/dev/phhims_ovl`) and mounted from there.
-- Static RROs only registered after building them with `minSdkVersion`/`targetSdkVersion` matching the ROM (37) and `<application android:hasCode="false"/>`, `isStatic=true`, `priority=100`, aapt2 `--keep-raw-values`. They are signed with an ordinary debug key.
-- **Boot-loop protection:** `post-fs-data.sh` increments `/data/adb/phhims-volte.bootcount`; after 2 boots that never reach `sys.boot_completed` + 60 s it skips the mounts. `service.sh` resets the counter. Creating `/data/adb/phhims-volte.disable` also skips them. Log: `/data/adb/phhims-volte.log`.
+On the tested ROM, the preset o2 APN `internet` also had the type `ims` and there was no separate IMS APN, so IMS stayed unregistered. Fix:
 
-### Install
+1. Settings → Network & internet → SIMs → your o2 SIM → Access Point Names
+2. Add an APN: APN `ims`, APN type `ims`, APN protocol IPv4/IPv6
+3. Remove `ims` from the APN type of the `internet` APN
+4. Toggle airplane mode on and off
 
-1. Rooted with KernelSU (tested: AospKSU kernel 4.19.325, KernelSU v3.3.1; no metamodule).
-2. Download `phhims_volte-v0.1.zip` from the Releases page, install it in the KernelSU manager, reboot.
-3. Check Settings → Network & internet → SIMs → *your SIM* for the VoLTE / 4G calling toggle, then test a call and an SMS.
+## Installation
 
-### Uninstall / rollback
+1. Download `phhims_volte-v0.1-o2.zip` from [Releases](../../releases).
+2. KernelSU → Modules → Install → select the zip → reboot.
+3. About a minute after boot, check `/data/adb/phhims-volte.log`: it should list the mounts and the PhhIms overlays, `IMS feature: declared`, your SIM's network code and a `carrier config` line ending in `true`.
+4. Turn on VoLTE under Settings → Network & internet → SIMs → your SIM, then test a call and an SMS.
 
-Disable or remove the module in the KernelSU manager and reboot. Calls and SMS go back to the normal CS fallback.
+To uninstall, remove the module in KernelSU and reboot.
 
-## Building PhhIms yourself
+## Changes compared to buddi0812's v0.1 (2026-11-09)
 
-The APK in the release is built from upstream [krazey/ims](https://github.com/krazey/ims) at commit
-`a3fec01ebc4f51c39026565c4a451fef454637fa` plus `patches/0001-phhims-for-r8q-pixelos.patch`:
+- **Carrier config:** the Airtel India network codes (404/405-xx) were replaced with o2 / Telefónica Germany: 262-07, 262-08, 262-11, 262-03 and 262-77.
+- **IMS feature:** the module declares `android.hardware.telephony.ims`. Telephony only starts its ImsResolver, which binds PhhIms, if the ROM declares this feature. If the ROM already does, nothing changes.
+- **Power management:** PhhIms is on the system power-save allowlist (`allow-in-power-save`), so Doze and App Standby don't restrict it.
+- **Diagnostics:** the log also shows the IMS feature state, the SIM network code, the VoLTE carrier-config value and the power-save state. The package check now matches `me.phh.ims` exactly instead of also matching the overlays.
+- **Build script:** `build.sh` builds the overlays and the module zip.
+- **Unchanged:** the PhhIms APK (taken from buddi0812's v0.1 release), the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays.
 
-```
+## Other carriers
+
+The bundled PhhIms applies a persistent VoLTE carrier-config override for any SIM on its own (`ensureVolteCarrierConfig` in buddi0812's patch). On PixelOS the CarrierConfig overlay was even ignored, so the carrier list in `overlays/cc` only matters on ROMs that honour it. To add a carrier there, edit `overlays/cc/res/xml/vendor.xml` (keep leading zeros, e.g. `mnc="07"`) and rebuild.
+
+## Troubleshooting
+
+- **Boot-loop protection:** if the phone fails to finish booting twice in a row, the module skips its mounts on the next boot. Creating `/data/adb/phhims-volte.disable` skips them manually.
+- **Logs for a call** (PhhIms logs to the radio buffer):
+  ```sh
+  su -c 'logcat -b all -v threadtime > /sdcard/Download/volte_log.txt'
+  ```
+  Make a few calls, stop with Ctrl+C and attach the file together with `/data/adb/phhims-volte.log` when reporting an issue.
+
+## Building
+
+**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch):
+
+```sh
 git clone https://github.com/krazey/ims && cd ims
 git checkout a3fec01ebc4f51c39026565c4a451fef454637fa
 git apply /path/to/0001-phhims-for-r8q-pixelos.patch
@@ -60,22 +74,17 @@ git apply /path/to/0001-phhims-for-r8q-pixelos.patch
 ./gradlew assembleDebug      # Gradle 8.5, AGP 8.2, Kotlin 1.8.10, NDK 25.1.8937393
 ```
 
-If you build this into the ROM instead (the real fix), you do not need the patch's `build.gradle` change, the `sharedUserId` removal,
-or the compat shims; you can sign with the platform key and keep `android.uid.system`. What the ROM needs is:
+**Overlays and module zip:**
 
-1. PhhIms (or equivalent) in `system_ext`/`product` priv-app, platform-signed.
-2. `config_ims_mmtel_package` overlay for the phone app.
-3. VoLTE availability flags for the carriers (the `ensureVolteCarrierConfig` logic, or carrier-config entries).
-4. SELinux: I saw no PhhIms-related denials during the test, so `sepolicy.rule` is empty.
+```sh
+BUILD_TOOLS=~/Android/Sdk/build-tools/35.0.0 \
+ANDROID_JAR=~/Android/Sdk/platforms/android-33/android.jar \
+KEYSTORE=my-key.jks \
+PHHIMS_APK=path/to/PhhIms.apk ./build.sh
+```
 
-Overlay sources are in `overlays/`; build with `aapt2 compile` + `aapt2 link --min-sdk-version 37 --target-sdk-version 37 --keep-raw-values`, then `apksigner sign`.
-
-## Known gaps
-
-- Downlink jitter: the log shows short concealed playout underruns; I did not notice them in the call but a bigger jitter buffer may help on worse networks.
-- Wi-Fi calling throws a `SecurityException` on the SIM info access; not investigated.
-- PhhIms is a userspace SIP stack: other carriers need their own IMS quirks (upstream already handles Jio).
+The zip ends up in `dist/`. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
 
 ## License
 
-PhhIms is GPL-2.0, so is this repo (patch + packaging). Upstream credit: Pierre-Hugues Husson (phh) and the krazey/ims contributors.
+GPL-2.0, see [LICENSE](LICENSE), like PhhIms and the original module.
