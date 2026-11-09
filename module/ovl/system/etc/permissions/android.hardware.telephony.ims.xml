@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- o2 edit (Silvertax, 2026-11-09): telephony only starts ImsResolver (which binds PhhIms)
+     when this feature is declared. Harmless if the ROM declares it already. -->
+<permissions>
+    <feature name="android.hardware.telephony.ims"/>
+</permissions>

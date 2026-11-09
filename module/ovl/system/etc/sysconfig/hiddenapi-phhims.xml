@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <config>
     <hidden-api-whitelisted-app package="me.phh.ims"/>
+    <!-- o2 edit (Silvertax, 2026-11-09): keep Doze and App Standby from restricting PhhIms -->
+    <allow-in-power-save package="me.phh.ims"/>
 </config>
