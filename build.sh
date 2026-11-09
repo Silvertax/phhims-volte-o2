@@ -1,0 +1,44 @@
+#!/bin/sh
+# Builds the three overlay APKs from overlays/ and packs the KernelSU module zip into dist/.
+#
+#   BUILD_TOOLS=~/Android/Sdk/build-tools/35.0.0 \
+#   ANDROID_JAR=~/Android/Sdk/platforms/android-33/android.jar \
+#   KEYSTORE=my-key.jks \
+#   PHHIMS_APK=path/to/PhhIms.apk ./build.sh
+#
+# PhhIms.apk: build it from krazey/ims + patches/ (see README) or take it from a release zip.
+# Set KS_PASS to pass the keystore password non-interactively.
+set -e
+cd "$(dirname "$0")"
+: "${BUILD_TOOLS:?set BUILD_TOOLS to an Android build-tools directory}"
+: "${ANDROID_JAR:?set ANDROID_JAR to an android.jar}"
+: "${KEYSTORE:?set KEYSTORE to your signing keystore}"
+: "${PHHIMS_APK:?set PHHIMS_APK to the PhhIms APK}"
+
+VERSION=$(sed -n 's/^version=//p' module/module.prop)
+OUT=dist/module
+rm -rf dist
+mkdir -p dist/tmp "$OUT"
+cp -R module/. "$OUT/"
+cp LICENSE "$OUT/LICENSE"
+mkdir -p "$OUT/ovl/product/overlay" "$OUT/ovl/system/priv-app/PhhIms"
+cp "$PHHIMS_APK" "$OUT/ovl/system/priv-app/PhhIms/PhhIms.apk"
+
+# --keep-raw-values keeps mnc="07" as the string "07". Without it aapt2 stores the
+# integer 7, CarrierConfig reads "7" and the entry never matches the SIM.
+for pair in android:PhhImsAndroidOverlay cc:PhhImsCarrierConfigOverlay phone:PhhImsPhoneOverlay; do
+  src=overlays/${pair%%:*}
+  name=${pair#*:}
+  tmp=dist/tmp/$name
+  mkdir -p "$tmp"
+  "$BUILD_TOOLS/aapt2" compile --dir "$src/res" -o "$tmp/res.zip"
+  "$BUILD_TOOLS/aapt2" link --min-sdk-version 37 --target-sdk-version 37 --keep-raw-values \
+      -I "$ANDROID_JAR" --manifest "$src/AndroidManifest.xml" -o "$tmp/unaligned.apk" "$tmp/res.zip"
+  "$BUILD_TOOLS/zipalign" -p -f 4 "$tmp/unaligned.apk" "$tmp/aligned.apk"
+  "$BUILD_TOOLS/apksigner" sign --ks "$KEYSTORE" ${KS_PASS:+--ks-pass env:KS_PASS} \
+      --v4-signing-enabled false --out "$OUT/ovl/product/overlay/$name.apk" "$tmp/aligned.apk"
+done
+rm -rf dist/tmp
+
+(cd "$OUT" && zip -qr -X "../phhims_volte-$VERSION.zip" .)
+echo "Built dist/phhims_volte-$VERSION.zip"
