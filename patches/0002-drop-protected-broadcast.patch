@@ -1,0 +1,11 @@
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 6f9147e..3267eb6 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -40,6 +40,5 @@
+         </intent-filter>
+       </service>
+     </application>
+-    <protected-broadcast android:name="me.phh.ims.ALARM_PERIODIC_REGISTER" />
+ 
+ </manifest>

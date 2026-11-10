@@ -10,11 +10,12 @@ KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Ga
 
 ## Status
 
-Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud), KernelSU v3.3.1 in the kernel, SELinux enforcing, o2 Germany (262-07), with buddi0812's v0.1 plus a dedicated IMS APN.
+Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud), KernelSU v3.3.1 in the kernel, SELinux enforcing, o2 Germany (262-07), with a dedicated IMS APN.
 
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
-- **Seen later:** not every call went over VoLTE. Calls that don't use VoLTE fall back to 2G, where mobile data pauses for the duration of the call.
+- **Fixed in v0.2-o2:** with v0.1 VoLTE stopped working some time after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10).
+- **Still open:** one outgoing call fell back to 2G after the fixes, cause not captured in a log.
 - **Magisk:** not tested yet. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
 ## Requirements
@@ -34,12 +35,27 @@ On the tested ROM, the preset o2 APN `internet` also had the type `ims` and ther
 
 ## Installation
 
-1. Download `phhims_volte-v0.1-o2.zip` from [Releases](../../releases).
+1. Download `phhims_volte-v0.2-o2.zip` from [Releases](../../releases).
 2. KernelSU / Magisk → Modules → Install → select the zip → reboot.
-3. About a minute after boot, check `/data/adb/phhims-volte.log`: it should list the mounts and the PhhIms overlays, `IMS feature: declared`, your SIM's network code and a `carrier config` line ending in `true`.
+3. About a minute after boot, check `/data/adb/phhims-volte.log`: it should list the mounts and the PhhIms overlays, `IMS feature: declared`, and your SIM's network code. About 65 minutes after boot it adds `registration refresh alarm: queued`, and each outgoing VoLTE call adds a `vendor.calls.slot_id0 0 -> 1` line.
 4. Turn on VoLTE under Settings → Network & internet → SIMs → your SIM, then test a call and an SMS.
 
 To uninstall, remove the module in KernelSU / Magisk and reboot.
+
+## Changes in v0.2-o2 (2026-11-10)
+
+Two separate faults, both found on the test device and both confirmed fixed there.
+
+**1. The IMS registration was never refreshed.** PhhIms renews its registration from an alarm that sends the broadcast `me.phh.ims.ALARM_PERIODIC_REGISTER` through a PendingIntent, and its manifest declares that action as a `<protected-broadcast>`. Android only lets system UIDs send protected broadcasts. Upstream PhhIms runs as `android.uid.system`; this build has no `sharedUserId`, so Android rejected the alarm's broadcast and, because the alarm is re-armed only when it is delivered, it never ran again. The registration expired, the phone still showed it as active, and calls in both directions fell back to 2G until something forced a new registration.
+
+- Fix: the `<protected-broadcast>` declaration is removed from the APK manifest ([`tools/strip-protected-broadcast.py`](tools/strip-protected-broadcast.py), run by `build.sh`, which then re-signs the APK; [`patches/0002-drop-protected-broadcast.patch`](patches/0002-drop-protected-broadcast.patch) does the same when building from source). The receiver is registered as not exported, so still only PhhIms and the system can deliver the broadcast.
+- Check on a device: `su -c 'dumpsys alarm | grep -c "tag=.*ALARM_PERIODIC_REGISTER"'` more than an hour after boot prints `0` with the fault and `1` without it.
+
+**2. Outgoing calls crashed audioserver.** When a call is dialled, Telecom first sets `MODE_IN_CALL` and switches to the VoIP mode about 0.1 s later. The r8q audio HAL's `setMode(IN_CALL)` loops until `vendor.calls.slot_id0` or `vendor.calls.slot_id1` leaves `0`; the RIL sets it to `1` for a circuit-switched call. A PhhIms call has no modem call, so the HAL spun until the audioserver watchdog killed audioserver about 6 s later. The call connected late, without ringback, and PhhIms failed to open the microphone.
+
+- Workaround: `service.sh` watches the radio log for PhhIms starting an outgoing call, sets the calling slot's property to `1` and puts it back to `0` after the call unless another call is still up. A proper fix belongs in the ROM's audio HAL.
+
+Also new: `service.sh` logs 65 minutes after boot whether the refresh alarm is queued.
 
 ## Changes compared to buddi0812's v0.1 (2026-11-09)
 
@@ -48,7 +64,7 @@ To uninstall, remove the module in KernelSU / Magisk and reboot.
 - **Power management:** PhhIms is on the system power-save allowlist (`allow-in-power-save`), so Doze and App Standby don't restrict it.
 - **Diagnostics:** the log also shows the IMS feature state, the SIM network code, the VoLTE carrier-config value and the power-save state. The package check now matches `me.phh.ims` exactly instead of also matching the overlays.
 - **Build script:** `build.sh` builds the overlays and the module zip.
-- **Unchanged:** the PhhIms APK (taken from buddi0812's v0.1 release), the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays.
+- **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with only its manifest changed (see v0.2-o2 above).
 
 ## Other carriers
 
@@ -65,12 +81,13 @@ The bundled PhhIms applies a persistent VoLTE carrier-config override for any SI
 
 ## Building
 
-**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch):
+**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch) and [`patches/0002-drop-protected-broadcast.patch`](patches/0002-drop-protected-broadcast.patch):
 
 ```sh
 git clone https://github.com/krazey/ims && cd ims
 git checkout a3fec01ebc4f51c39026565c4a451fef454637fa
 git apply /path/to/0001-phhims-for-r8q-pixelos.patch
+git apply /path/to/0002-drop-protected-broadcast.patch
 # edit app/build.gradle: set the SDK path in the bootstrapClasspath line (android-33 platform jar)
 ./gradlew assembleDebug      # Gradle 8.5, AGP 8.2, Kotlin 1.8.10, NDK 25.1.8937393
 ```
@@ -84,7 +101,7 @@ KEYSTORE=my-key.jks \
 PHHIMS_APK=path/to/PhhIms.apk ./build.sh
 ```
 
-The zip ends up in `dist/`. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
+The zip ends up in `dist/`. The script needs `python3`: it removes the `<protected-broadcast>` declaration from `PHHIMS_APK` if it is still there and re-signs the APK with `KEYSTORE`; an APK built with patch 0002 is packed as it is. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
 
 ## License
 
