@@ -1,5 +1,6 @@
 #!/bin/sh
-# Builds the three overlay APKs from overlays/ and packs the module zip (KernelSU / Magisk) into dist/.
+# Builds the three overlay APKs from overlays/, patches and re-signs PhhIms.apk and packs the
+# module zip (KernelSU / Magisk) into dist/. Needs python3 besides the Android build tools.
 #
 #   BUILD_TOOLS=~/Android/Sdk/build-tools/35.0.0 \
 #   ANDROID_JAR=~/Android/Sdk/platforms/android-33/android.jar \
@@ -22,7 +23,19 @@ mkdir -p dist/tmp "$OUT"
 cp -R module/. "$OUT/"
 cp LICENSE "$OUT/LICENSE"
 mkdir -p "$OUT/ovl/product/overlay" "$OUT/ovl/system/priv-app/PhhIms"
-cp "$PHHIMS_APK" "$OUT/ovl/system/priv-app/PhhIms/PhhIms.apk"
+
+# PhhIms: remove the manifest's <protected-broadcast> and re-sign. With the declaration Android
+# rejects the registration refresh alarm, because this build does not run as the system UID
+# (see README). An APK that no longer has the declaration is packed as it is.
+if python3 tools/strip-protected-broadcast.py "$PHHIMS_APK" dist/tmp/PhhIms-stripped.apk; then
+  "$BUILD_TOOLS/zipalign" -p -f 4 dist/tmp/PhhIms-stripped.apk dist/tmp/PhhIms-aligned.apk
+  "$BUILD_TOOLS/apksigner" sign --ks "$KEYSTORE" ${KS_PASS:+--ks-pass env:KS_PASS} \
+      --v1-signing-enabled false --v4-signing-enabled false \
+      --out "$OUT/ovl/system/priv-app/PhhIms/PhhIms.apk" dist/tmp/PhhIms-aligned.apk
+else
+  [ $? -eq 3 ] || exit 1
+  cp "$PHHIMS_APK" "$OUT/ovl/system/priv-app/PhhIms/PhhIms.apk"
+fi
 
 # --keep-raw-values keeps mnc="07" as the string "07". Without it aapt2 stores the
 # integer 7, CarrierConfig reads "7" and the entry never matches the SIM.
