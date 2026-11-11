@@ -1,0 +1,88 @@
+name: Bug report
+description: VoLTE, SMS or call audio does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The module is tested on one device only, so the details below matter.
+        **Logs contain phone numbers.** Remove them before attaching, or say that you would rather send the log privately.
+  - type: input
+    id: version
+    attributes:
+      label: Module version
+      description: Shown in KernelSU / Magisk, e.g. v0.2-o2
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and ROM
+      description: Model, ROM name and version, Android version
+      placeholder: SM-G780G, LineageOS 24.0 (unofficial), Android 17
+    validations:
+      required: true
+  - type: dropdown
+    id: root
+    attributes:
+      label: Root solution
+      options:
+        - KernelSU
+        - KernelSU Next
+        - Magisk
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: carrier
+    attributes:
+      label: Carrier and country
+      placeholder: o2 Germany
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: What is affected?
+      multiple: true
+      options:
+        - IMS does not register
+        - Outgoing calls
+        - Incoming calls
+        - Call audio / microphone
+        - Calls fall back to 2G (mobile data pauses)
+        - SMS
+        - Boot problem
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what did you expect?
+      description: Include when it started and whether it happens every time.
+    validations:
+      required: true
+  - type: textarea
+    id: modlog
+    attributes:
+      label: Module log
+      description: "Output of: su -c 'cat /data/adb/phhims-volte.log'"
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: radiolog
+    attributes:
+      label: Radio log
+      description: |
+        Run this right after the problem (for calls: right after hanging up) and attach the file:
+        `su -c 'logcat -d -b radio > /sdcard/Download/volte-log.txt'`
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checked
+      options:
+        - label: Only one PhhIms / VoLTE module is active
+          required: true
+        - label: A separate IMS APN is set up as described in the README
