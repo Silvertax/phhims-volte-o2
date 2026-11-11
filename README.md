@@ -14,8 +14,8 @@ Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS
 
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
-- **Fixed in v0.2-o2:** with v0.1 VoLTE stopped working some time after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10).
-- **Still open:** one outgoing call fell back to 2G after the fixes, cause not captured in a log.
+- **Fixed:** with v0.1 VoLTE stopped working about an hour after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. The audio fix works from v0.2-o2, the registration fix from v0.2.2-o2. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10).
+- **How far this is tested:** for a little over three hours after the correction in v0.2.2-o2 the registration was refreshed on schedule and outgoing calls connected at once. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
 - **Magisk:** not tested yet. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
 ## Requirements
@@ -60,6 +60,8 @@ Two separate faults, both found on the test device. See the correction for fix 1
 Also new: `service.sh` logs 65 minutes after boot whether the refresh alarm is queued.
 
 **Correction in v0.2.2-o2 (2026-11-11):** fix 1 did not take effect on phones that had v0.1 installed before. Android caches the parsed manifest of system packages and reuses the entry while the package file is older than the cache file. The module stages its files before the clock is set, so they are dated 2019 and always looked older than the cache entry written when v0.1 was first installed. Android therefore kept the old manifest, including the `<protected-broadcast>`. `post-fs-data.sh` now deletes the module's cache entries on every boot. The earlier "confirmed fixed" for fix 1 was wrong: the refresh alarm was seen queued once, but the registration still expired after an hour.
+
+Checked on the test device on 2026-11-11 with the cache entry removed by hand: Android rewrote the entry at boot, the refresh alarm was still being delivered 150 minutes after boot (`Alarm fired with me.phh.ims.ALARM_PERIODIC_REGISTER` in the radio log; it is only re-armed when it is delivered), and outgoing calls 70 minutes and about three hours after boot connected at once. On every boot the module log now lists the entries it removed (`dropped stale package cache entry …`).
 
 ## Changes compared to buddi0812's v0.1 (2026-11-09)
 
