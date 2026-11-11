@@ -1,0 +1,99 @@
+# Builds the module zip.
+#  - pull request / manual run: build only, the zip is kept as a workflow artifact
+#  - published release: build, attach the zip to the release, update update.json on main
+name: Build module
+
+on:
+  pull_request:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  # PhhIms.apk is taken from this release zip (already patched, see README "Changes in v0.2-o2").
+  PHHIMS_ZIP_URL: https://github.com/Silvertax/phhims-volte-o2/releases/download/v0.2-o2/phhims_volte-v0.2-o2.zip
+  PHHIMS_ZIP_SHA256: 77ba55509055a4af24d3850852b8118c1db908dfaac4be65f4c2b2a6beb39e64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch PhhIms.apk
+        run: |
+          curl -fsSL -o /tmp/base.zip "$PHHIMS_ZIP_URL"
+          echo "$PHHIMS_ZIP_SHA256  /tmp/base.zip" | sha256sum -c -
+          unzip -q -j /tmp/base.zip ovl/system/priv-app/PhhIms/PhhIms.apk -d /tmp/apk
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          # Uses the repository secrets if they are set, otherwise a key made for this build.
+          # The overlays are system packages, so Android accepts a changed key on the next boot.
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > /tmp/key.jks
+            echo "KS_PASS=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          else
+            pass=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
+            keytool -genkeypair -keystore /tmp/key.jks -storepass "$pass" -keypass "$pass" \
+              -alias phhims -keyalg RSA -keysize 2048 -validity 10950 -dname "CN=PhhIms o2 overlay"
+            echo "KS_PASS=$pass" >> "$GITHUB_ENV"
+            echo "::notice::No KEYSTORE_BASE64 secret, signed the overlays with a one-off key."
+          fi
+
+      - name: Build
+        run: |
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          jar=$(ls "$ANDROID_HOME"/platforms/*/android.jar | sort -V | tail -n 1)
+          echo "build-tools: $bt, android.jar: $jar"
+          BUILD_TOOLS="$bt" ANDROID_JAR="$jar" KEYSTORE=/tmp/key.jks PHHIMS_APK=/tmp/apk/PhhIms.apk ./build.sh
+          version=$(sed -n 's/^version=//p' module/module.prop)
+          code=$(sed -n 's/^versionCode=//p' module/module.prop)
+          zip="dist/phhims_volte-$version.zip"
+          test -f "$zip"
+          unzip -l "$zip"
+          { echo "VERSION=$version"; echo "VERSION_CODE=$code"; echo "ZIP=$zip"; } >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: module-zip
+          path: ${{ env.ZIP }}
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Release tag $TAG does not match version=$VERSION in module/module.prop"
+            exit 1
+          fi
+          gh release upload "$TAG" "$ZIP" --clobber
+
+      - name: Update update.json on main
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          cat > update.json <<JSON
+          {
+            "version": "$VERSION",
+            "versionCode": $VERSION_CODE,
+            "zipUrl": "https://github.com/${{ github.repository }}/releases/download/$TAG/phhims_volte-$VERSION.zip",
+            "changelog": "https://raw.githubusercontent.com/${{ github.repository }}/main/CHANGELOG.md"
+          }
+          JSON
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add update.json
+          git diff --cached --quiet || git commit -m "update.json: $VERSION"
+          git push origin main

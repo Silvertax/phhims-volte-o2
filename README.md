@@ -40,6 +40,8 @@ On the tested ROM, the preset o2 APN `internet` also had the type `ims` and ther
 3. About a minute after boot, check `/data/adb/phhims-volte.log`: it should list the mounts and the PhhIms overlays, `IMS feature: declared`, and your SIM's network code. About 65 minutes after boot it adds `registration refresh alarm: queued`, and each outgoing VoLTE call adds a `vendor.calls.slot_id0 0 -> 1` line.
 4. Turn on VoLTE under Settings → Network & internet → SIMs → your SIM, then test a call and an SMS.
 
+Later versions can be installed from the module list in KernelSU / Magisk: the module carries an update link (`updateJson`), so the manager offers an update when a new release is out. This works from the first version after v0.2-o2.
+
 To uninstall, remove the module in KernelSU / Magisk and reboot.
 
 ## Changes in v0.2-o2 (2026-11-10)
@@ -77,7 +79,7 @@ The bundled PhhIms applies a persistent VoLTE carrier-config override for any SI
   ```sh
   su -c 'logcat -b all -v threadtime > /sdcard/Download/volte_log.txt'
   ```
-  Make a few calls, stop with Ctrl+C and attach the file together with `/data/adb/phhims-volte.log` when reporting an issue.
+  Make a few calls, stop with Ctrl+C and attach the file together with `/data/adb/phhims-volte.log` when [reporting an issue](../../issues/new/choose). The log contains phone numbers.
 
 ## Building
 
@@ -102,6 +104,8 @@ PHHIMS_APK=path/to/PhhIms.apk ./build.sh
 ```
 
 The zip ends up in `dist/`. The script needs `python3`: it removes the `<protected-broadcast>` declaration from `PHHIMS_APK` if it is still there and re-signs the APK with `KEYSTORE`; an APK built with patch 0002 is packed as it is. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
+
+**Releases:** set `version` and `versionCode` in `module/module.prop`, add the changes to `CHANGELOG.md`, merge, then publish a GitHub release whose tag equals `version`. The workflow in `.github/workflows/build.yml` builds the zip, attaches it to the release and updates `update.json`. It signs the overlays with the repository secrets `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` if they are set, otherwise with a key made for that build.
 
 ## License
 

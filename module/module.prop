@@ -2,5 +2,6 @@ id=phhims_volte
 name=PhhIms VoLTE (o2 DE)
 version=v0.2-o2
 versionCode=6
+updateJson=https://raw.githubusercontent.com/Silvertax/phhims-volte-o2/main/update.json
 author=buddi0812, o2 edit: Silvertax
 description=Open-source IMS (PhhIms) as a privileged app plus telephony overlays, for VoLTE on r8q (Galaxy S20 FE Snapdragon) with o2 Germany. Boot-loop protected, log: /data/adb/phhims-volte.log
