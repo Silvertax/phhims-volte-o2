@@ -46,7 +46,7 @@ To uninstall, remove the module in KernelSU / Magisk and reboot.
 
 ## Changes in v0.2-o2 (2026-11-10)
 
-Two separate faults, both found on the test device and both confirmed fixed there.
+Two separate faults, both found on the test device. See the correction for fix 1 below.
 
 **1. The IMS registration was never refreshed.** PhhIms renews its registration from an alarm that sends the broadcast `me.phh.ims.ALARM_PERIODIC_REGISTER` through a PendingIntent, and its manifest declares that action as a `<protected-broadcast>`. Android only lets system UIDs send protected broadcasts. Upstream PhhIms runs as `android.uid.system`; this build has no `sharedUserId`, so Android rejected the alarm's broadcast and, because the alarm is re-armed only when it is delivered, it never ran again. The registration expired, the phone still showed it as active, and calls in both directions fell back to 2G until something forced a new registration.
 
@@ -58,6 +58,8 @@ Two separate faults, both found on the test device and both confirmed fixed ther
 - Workaround: `service.sh` watches the radio log for PhhIms starting an outgoing call, sets the calling slot's property to `1` and puts it back to `0` after the call unless another call is still up. A proper fix belongs in the ROM's audio HAL.
 
 Also new: `service.sh` logs 65 minutes after boot whether the refresh alarm is queued.
+
+**Correction in v0.2.2-o2 (2026-11-11):** fix 1 did not take effect on phones that had v0.1 installed before. Android caches the parsed manifest of system packages and reuses the entry while the package file is older than the cache file. The module stages its files before the clock is set, so they are dated 2019 and always looked older than the cache entry written when v0.1 was first installed. Android therefore kept the old manifest, including the `<protected-broadcast>`. `post-fs-data.sh` now deletes the module's cache entries on every boot. The earlier "confirmed fixed" for fix 1 was wrong: the refresh alarm was seen queued once, but the registration still expired after an hour.
 
 ## Changes compared to buddi0812's v0.1 (2026-11-09)
 
