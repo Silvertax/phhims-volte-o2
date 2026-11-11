@@ -1,6 +1,6 @@
 {
-  "version": "v0.2-o2",
-  "versionCode": 6,
-  "zipUrl": "https://github.com/Silvertax/phhims-volte-o2/releases/download/v0.2-o2/phhims_volte-v0.2-o2.zip",
+  "version": "v0.2.1-o2",
+  "versionCode": 7,
+  "zipUrl": "https://github.com/Silvertax/phhims-volte-o2/releases/download/v0.2.1-o2/phhims_volte-v0.2.1-o2.zip",
   "changelog": "https://raw.githubusercontent.com/Silvertax/phhims-volte-o2/main/CHANGELOG.md"
 }
