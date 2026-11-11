@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.1-o2 (2026-11-11)
+
+- New: updates can be installed from the module list in KernelSU / Magisk.
+- The zip is now built by GitHub. No change to how VoLTE works.
+
 ## v0.2-o2 (2026-11-10)
 
 - Fixed: VoLTE stopped working some time after each registration, because the IMS registration was never refreshed. Calls then fell back to 2G.

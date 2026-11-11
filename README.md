@@ -35,12 +35,12 @@ On the tested ROM, the preset o2 APN `internet` also had the type `ims` and ther
 
 ## Installation
 
-1. Download `phhims_volte-v0.2-o2.zip` from [Releases](../../releases).
+1. Download the latest `phhims_volte-*.zip` from [Releases](../../releases/latest).
 2. KernelSU / Magisk → Modules → Install → select the zip → reboot.
 3. About a minute after boot, check `/data/adb/phhims-volte.log`: it should list the mounts and the PhhIms overlays, `IMS feature: declared`, and your SIM's network code. About 65 minutes after boot it adds `registration refresh alarm: queued`, and each outgoing VoLTE call adds a `vendor.calls.slot_id0 0 -> 1` line.
 4. Turn on VoLTE under Settings → Network & internet → SIMs → your SIM, then test a call and an SMS.
 
-Later versions can be installed from the module list in KernelSU / Magisk: the module carries an update link (`updateJson`), so the manager offers an update when a new release is out. This works from the first version after v0.2-o2.
+Later versions can be installed from the module list in KernelSU / Magisk: the module carries an update link (`updateJson`), so the manager offers an update when a new release is out. This works from v0.2.1-o2 on.
 
 To uninstall, remove the module in KernelSU / Magisk and reboot.
 
