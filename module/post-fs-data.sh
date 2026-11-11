@@ -22,6 +22,15 @@ cp -r "$MODDIR/ovl/." "$STAGE/"
 chmod -R a+rX "$STAGE"
 chcon -R u:object_r:system_file:s0 "$STAGE" 2>/dev/null
 
+# Android caches the parsed manifest of every system package and reuses the entry as long as the
+# package file is older than the cache file. The clock is not set this early in boot (the copies
+# above are dated 2019), so the staged APKs always look older than their cache entries and Android
+# would keep using the manifest of whichever version was installed first. Drop the entries so the
+# APKs are parsed again on every boot.
+for f in /data/system/package_cache/*/PhhIms-* /data/system/package_cache/*/PhhIms*Overlay.apk-*; do
+  [ -e "$f" ] && rm -f "$f" && log "dropped stale package cache entry ${f##*/}"
+done
+
 ovmount() {
   src="$1"; dst="$2"
   if [ -d "$src" ] && [ -d "$dst" ]; then
