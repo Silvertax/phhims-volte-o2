@@ -25,7 +25,13 @@ else
   log "IMS feature: MISSING (ImsResolver will not start)"
 fi
 log "SIM PLMN: $(getprop gsm.sim.operator.numeric)"
-log "carrier config: $(cmd phone cc get-value carrier_volte_available_bool 2>&1 | tr -s '\n' ' ')"
+# "cmd phone cc" is refused on user builds, so read the effective value from the dump instead
+log "carrier config: carrier_volte_available_bool = $(dumpsys carrier_config 2>/dev/null | awk -v key=carrier_volte_available_bool '
+  /Phone Id = / { inph = ($NF == "0"); next }
+  /mNoSimConfig/ { inph = 0 }
+  inph && / : ( null)? *$/ { sec = $1 }
+  inph && $1 == key && $2 == "=" { val = $3; src = sec }
+  END { if (val == "") print "unknown"; else print val " (" src ")" }')"
 log "power-save allowlist: $(dumpsys deviceidle whitelist 2>/dev/null | grep 'me.phh.ims' | tr -s '\n' ' ')"
 
 # Registration refresh check (v0.2-o2, 2026-11-10). PhhIms renews its IMS registration from an
