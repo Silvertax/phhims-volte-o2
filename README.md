@@ -20,7 +20,7 @@ Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS
 
 ## Requirements
 
-- Galaxy S20 FE Snapdragon (r8q) with a ROM on **Android 17** (the overlays are built with `minSdkVersion 37`)
+- Galaxy S20 FE Snapdragon (r8q) with a ROM on **Android 17**, or Android 16 as a test from v0.3.1. Static overlays only load when their SDK version matches the ROM, so the module carries overlays for SDK 37 and SDK 36 and `customize.sh` installs the matching set. Other Android versions are refused at install time.
 - Root with KernelSU or Magisk (Magisk not tested yet, see Status)
 - Only **one** PhhIms/VoLTE module active at a time
 
