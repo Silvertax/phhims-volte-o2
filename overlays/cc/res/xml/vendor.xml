@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- o2 edit (Silvertax, 2026-11-09): Airtel India PLMNs replaced with o2 / Telefonica Germany:
      262-07, 262-08, 262-11 (o2) and 262-03, 262-77 (former E-Plus brands).
+     v0.3 (2026-11-12): added 262-01 (Telekom), 262-02 (Vodafone) and 262-23 (1&1) with the same
+     values. Untested with those carriers; brands on their networks use the same codes.
      Keep the leading zero in mnc and link with aapt2's keep-raw-values option (see build.sh). -->
 <carrier_config_list>
     <carrier_config mcc="262" mnc="07">
@@ -44,6 +46,36 @@
         <boolean name="carrier_ims_gba_required_bool" value="false" />
     </carrier_config>
     <carrier_config mcc="262" mnc="77">
+        <boolean name="carrier_volte_available_bool" value="true" />
+        <boolean name="carrier_volte_provisioning_required_bool" value="false" />
+        <boolean name="hide_enhanced_4g_lte_bool" value="false" />
+        <boolean name="editable_enhanced_4g_lte_bool" value="true" />
+        <boolean name="enhanced_4g_lte_on_by_default_bool" value="true" />
+        <boolean name="carrier_vt_available_bool" value="false" />
+        <boolean name="vonr_enabled_bool" value="false" />
+        <boolean name="carrier_ims_gba_required_bool" value="false" />
+    </carrier_config>
+    <carrier_config mcc="262" mnc="01">
+        <boolean name="carrier_volte_available_bool" value="true" />
+        <boolean name="carrier_volte_provisioning_required_bool" value="false" />
+        <boolean name="hide_enhanced_4g_lte_bool" value="false" />
+        <boolean name="editable_enhanced_4g_lte_bool" value="true" />
+        <boolean name="enhanced_4g_lte_on_by_default_bool" value="true" />
+        <boolean name="carrier_vt_available_bool" value="false" />
+        <boolean name="vonr_enabled_bool" value="false" />
+        <boolean name="carrier_ims_gba_required_bool" value="false" />
+    </carrier_config>
+    <carrier_config mcc="262" mnc="02">
+        <boolean name="carrier_volte_available_bool" value="true" />
+        <boolean name="carrier_volte_provisioning_required_bool" value="false" />
+        <boolean name="hide_enhanced_4g_lte_bool" value="false" />
+        <boolean name="editable_enhanced_4g_lte_bool" value="true" />
+        <boolean name="enhanced_4g_lte_on_by_default_bool" value="true" />
+        <boolean name="carrier_vt_available_bool" value="false" />
+        <boolean name="vonr_enabled_bool" value="false" />
+        <boolean name="carrier_ims_gba_required_bool" value="false" />
+    </carrier_config>
+    <carrier_config mcc="262" mnc="23">
         <boolean name="carrier_volte_available_bool" value="true" />
         <boolean name="carrier_volte_provisioning_required_bool" value="false" />
         <boolean name="hide_enhanced_4g_lte_bool" value="false" />

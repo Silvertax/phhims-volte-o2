@@ -64,6 +64,11 @@ body:
     validations:
       required: true
   - type: textarea
+    id: statusbtn
+    attributes:
+      label: Status button output
+      description: From v0.3, tap the module's Action button in KernelSU / Magisk and attach a screenshot, or paste /sdcard/Download/phhims-volte-status.txt
+  - type: textarea
     id: modlog
     attributes:
       label: Module log

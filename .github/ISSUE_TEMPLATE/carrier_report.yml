@@ -1,0 +1,47 @@
+name: Carrier report
+description: Tell us whether VoLTE works with your carrier, also if it does
+title: "Carrier report: "
+labels: [carrier]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! Reports that it works are just as useful as reports that it doesn't.
+        Tap the module's **Action** button in KernelSU / Magisk a few minutes after boot and attach a screenshot, or paste `/sdcard/Download/phhims-volte-status.txt`. It contains no phone numbers.
+  - type: input
+    id: carrier
+    attributes:
+      label: Carrier and country
+      description: Include the brand if it runs on another network, e.g. "congstar (Telekom), Germany"
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Works (calls in both directions and SMS)
+        - Partly works
+        - Does not work
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Status button output
+      description: Screenshot or the text from /sdcard/Download/phhims-volte-status.txt
+    validations:
+      required: true
+  - type: input
+    id: hours
+    attributes:
+      label: How long did you test?
+      description: e.g. "one day, calls 2 hours after boot still on VoLTE"
+  - type: textarea
+    id: notes
+    attributes:
+      label: What did not work, or anything else
+      description: |
+        If calls fail, a radio log right after the failing call helps most:
+        `su -c 'logcat -d -b radio > /sdcard/Download/volte-log.txt'`
+        That log contains phone numbers: remove them or ask to send it privately.

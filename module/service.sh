@@ -25,7 +25,13 @@ else
   log "IMS feature: MISSING (ImsResolver will not start)"
 fi
 log "SIM PLMN: $(getprop gsm.sim.operator.numeric)"
-log "carrier config: $(cmd phone cc get-value carrier_volte_available_bool 2>&1 | tr -s '\n' ' ')"
+# "cmd phone cc" is refused on user builds, so read the effective value from the dump instead
+log "carrier config: carrier_volte_available_bool = $(dumpsys carrier_config 2>/dev/null | awk -v key=carrier_volte_available_bool '
+  /Phone Id = / { inph = ($NF == "0"); next }
+  /mNoSimConfig/ { inph = 0 }
+  inph && / : ( null)? *$/ { sec = $1 }
+  inph && $1 == key && $2 == "=" { val = $3; src = sec }
+  END { if (val == "") print "unknown"; else print val " (" src ")" }')"
 log "power-save allowlist: $(dumpsys deviceidle whitelist 2>/dev/null | grep 'me.phh.ims' | tr -s '\n' ' ')"
 
 # Registration refresh check (v0.2-o2, 2026-11-10). PhhIms renews its IMS registration from an
@@ -47,15 +53,22 @@ log "power-save allowlist: $(dumpsys deviceidle whitelist 2>/dev/null | grep 'me
 # PhhIms call has no modem call, so the HAL spins until the audioserver watchdog kills
 # audioserver ~6 s later: the call connects late and the microphone never opens.
 # Release the HAL by reporting the calling slot ourselves while PhhIms sets up an outgoing call.
+# Also keeps the IMS registration state for the status button (see ims-state.sh).
+. "$MODDIR/ims-state.sh"
+rm -f "$IMS_STATE"
+
 set_slot_prop() {
   if command -v resetprop >/dev/null 2>&1; then resetprop -n "$1" "$2"; else setprop "$1" "$2"; fi
 }
 (
   held=
   while true; do
+    # IMS registration so far (it usually happens before this script runs), then follow the log
+    logcat -d -b radio -e "^($IMS_LOG_RE)\$" 2>/dev/null | while read -r line; do ims_update "$line"; done
     # -e matches the message text only, not the tag; the tag is checked below.
-    logcat -b radio -T 1 -e '^([0-9]+ createCallSession|Closing call)$' 2>/dev/null |
+    logcat -b radio -T 1 -e "^([0-9]+ createCallSession|Closing call|$IMS_LOG_RE)\$" 2>/dev/null |
     while read -r line; do
+      ims_update "$line"
       case "$line" in
         *"PHH MmTelFeature"*createCallSession*)
           slot=${line##*MmTelFeature: }; slot=${slot%% *}

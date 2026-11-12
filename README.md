@@ -1,6 +1,6 @@
-# PhhIms VoLTE for the Galaxy S20 FE (r8q) – o2 Germany
+# PhhIms VoLTE for the Galaxy S20 FE (r8q)
 
-KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. This is a fork of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)**, adapted for **o2 Germany (Telefónica)**.
+KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. This is a fork of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)**, adapted and tested with **o2 Germany (Telefónica)**. **Testers with other carriers are wanted**, see [Other carriers](#other-carriers-testers-wanted).
 
 ## Credits
 
@@ -15,7 +15,7 @@ Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
 - **Fixed:** with v0.1 VoLTE stopped working about an hour after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. The audio fix works from v0.2-o2, the registration fix from v0.2.2-o2. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10).
-- **How far this is tested:** for a little over three hours after the correction in v0.2.2-o2 the registration was refreshed on schedule and outgoing calls connected at once. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
+- **How far this is tested:** with v0.2.2-o2, incoming and outgoing calls still went over VoLTE 13 hours after boot, and the registration was refreshed on schedule. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
 - **Magisk:** not tested yet. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
 ## Requirements
@@ -24,9 +24,11 @@ Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS
 - Root with KernelSU or Magisk (Magisk not tested yet, see Status)
 - Only **one** PhhIms/VoLTE module active at a time
 
-## o2: add a dedicated IMS APN
+## IMS APN
 
-On the tested ROM, the preset o2 APN `internet` also had the type `ims` and there was no separate IMS APN, so IMS stayed unregistered. Fix:
+If IMS does not register, check the APNs first: many carriers need a separate APN `ims` with the type `ims`, and no other APN may carry that type.
+
+**o2:** on the tested ROM, the preset o2 APN `internet` also had the type `ims` and there was no separate IMS APN, so IMS stayed unregistered. Fix:
 
 1. Settings → Network & internet → SIMs → your o2 SIM → Access Point Names
 2. Add an APN: APN `ims`, APN type `ims`, APN protocol IPv4/IPv6
@@ -37,12 +39,25 @@ On the tested ROM, the preset o2 APN `internet` also had the type `ims` and ther
 
 1. Download the latest `phhims_volte-*.zip` from [Releases](../../releases/latest).
 2. KernelSU / Magisk → Modules → Install → select the zip → reboot.
-3. About a minute after boot, check `/data/adb/phhims-volte.log`: it should list the mounts and the PhhIms overlays, `IMS feature: declared`, and your SIM's network code. About 65 minutes after boot it adds `registration refresh alarm: queued`, and each outgoing VoLTE call adds a `vendor.calls.slot_id0 0 -> 1` line.
+3. A minute after boot, tap the module's **Action** button in KernelSU / Magisk (see [Status button](#status-button)). It should end with `OK: VoLTE is ready.`
 4. Turn on VoLTE under Settings → Network & internet → SIMs → your SIM, then test a call and an SMS.
 
 Later versions can be installed from the module list in KernelSU / Magisk: the module carries an update link (`updateJson`), so the manager offers an update when a new release is out. This works from v0.2.1-o2 on.
 
 To uninstall, remove the module in KernelSU / Magisk and reboot.
+
+## Status button
+
+From v0.3 the module has an **Action** button in the module list of KernelSU and Magisk (Magisk 28 or later). It changes nothing and shows:
+
+- module version, device, ROM, carrier and network code
+- whether IMS is registered and offers voice and SMS (tracked from the radio log by `service.sh`, since not every ROM dumps this state)
+- the effective `carrier_volte_available_bool` and which config layer sets it
+- whether the registration refresh is scheduled, when it is due and when it last ran
+- outgoing VoLTE calls since boot and failed call setups in the radio log
+- a verdict: `OK`, `WAIT`, `CHECK` or `PROBLEM`
+
+The report is also saved to `/sdcard/Download/phhims-volte-status.txt`. It contains no phone numbers, so a screenshot or the file can be posted as it is.
 
 ## Changes in v0.2-o2 (2026-11-10)
 
@@ -72,12 +87,17 @@ Checked on the test device on 2026-11-11 with the cache entry removed by hand: A
 - **Build script:** `build.sh` builds the overlays and the module zip.
 - **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with only its manifest changed (see v0.2-o2 above).
 
-## Other carriers
+## Other carriers (testers wanted)
 
-The bundled PhhIms applies a persistent VoLTE carrier-config override for any SIM on its own (`ensureVolteCarrierConfig` in buddi0812's patch). On PixelOS the CarrierConfig overlay was even ignored, so the carrier list in `overlays/cc` only matters on ROMs that honour it. To add a carrier there, edit `overlays/cc/res/xml/vendor.xml` (keep leading zeros, e.g. `mnc="07"`) and rebuild.
+Only o2 Germany is tested. Nothing in the three fixes depends on the carrier, and the bundled PhhIms applies a persistent VoLTE carrier-config override for any SIM on its own (`ensureVolteCarrierConfig` in buddi0812's patch), so other carriers may well work already.
+
+The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE for o2 (262-03, -07, -08, -11, -77) and, since v0.3, Telekom (262-01), Vodafone (262-02) and 1&1 (262-23). Brands on these networks use the same codes. The list only matters on ROMs that honour the overlay; the status button shows which layer sets the value.
+
+**If you try it with another carrier,** please open a [carrier report](../../issues/new?template=carrier_report.yml), whether it works or not, with a screenshot of the status button and, if calls fail, a radio log taken right after the failing call. A carrier that does not work yet can often be added once its log shows what it expects.
 
 ## Troubleshooting
 
+- **Start with the status button.** Its last line names the most likely problem.
 - **Boot-loop protection:** if the phone fails to finish booting twice in a row, the module skips its mounts on the next boot. Creating `/data/adb/phhims-volte.disable` skips them manually.
 - **Logs for a call** (PhhIms logs to the radio buffer):
   ```sh
