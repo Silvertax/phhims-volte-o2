@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1 (2026-11-12)
+
+- New: Android 16 support as a test. The module carries overlays for Android 17 (SDK 37) and Android 16 (SDK 36) and installs the matching set. Untested on Android 16 so far.
+- New: the installation stops with a clear message on other Android versions. Before, the module installed but could not work there.
+- Status button: shows the Android version, how many of the three overlays are active and whether the IMS feature is declared, with a matching verdict. Tapped within 3 minutes of boot, it says to wait instead of reporting a problem.
+
 ## v0.3 (2026-11-12)
 
 - New: an **Action** button in KernelSU / Magisk shows the VoLTE status (registration, refresh, carrier config, calls) and saves it for reports.

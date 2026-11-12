@@ -59,6 +59,15 @@ up=$(cut -d. -f1 /proc/uptime)
 uptime_s="$((up / 3600))h $((up % 3600 / 60))min"
 
 if pm path me.phh.ims >/dev/null 2>&1; then installed=yes; else installed=no; fi
+# The overlays tell Android to use PhhIms for IMS. They only load on the Android version they
+# were built for, so none active usually means the wrong Android version.
+overlays=$(cmd overlay list 2>/dev/null | grep -c '\[x\] me\.phh\.ims')
+if pm list features 2>/dev/null | grep -qx 'feature:android.hardware.telephony.ims'; then
+  feature=declared
+else
+  feature=MISSING
+fi
+sdk=$(getprop ro.build.version.sdk)
 guard="off"
 [ -f /data/adb/phhims-volte.disable ] && guard="ON (disable file)"
 [ "$(cat /data/adb/phhims-volte.bootcount 2>/dev/null || echo 0)" -gt 2 ] && guard="ON (boot loop protection)"
@@ -68,6 +77,12 @@ rom=$(getprop ro.lineage.version)
 
 if [ "$installed" != yes ]; then
   verdict="PROBLEM: PhhIms is not installed. See the module log."
+elif [ "$overlays" -lt 3 ]; then
+  verdict="PROBLEM: only $overlays of 3 overlays are active, so Android does not use PhhIms. This module supports Android 17 (SDK 37) and, as a test, Android 16 (SDK 36)."
+elif [ "$feature" != declared ]; then
+  verdict="PROBLEM: the IMS feature is not declared, so Android does not start IMS. See the module log."
+elif [ -z "$regs" ] && [ "$up" -lt 180 ]; then
+  verdict="WAIT: the phone started less than 3 minutes ago. Tap again in a minute."
 elif [ "$regs" = registering ]; then
   verdict="WAIT: IMS is still registering. Tap the button again in a minute."
 elif [ "$regs" = "NOT registered" ]; then
@@ -83,10 +98,10 @@ fi
 report=$(cat <<EOF
 PhhIms VoLTE status
 Module:     $(prop version) ($(date '+%F %H:%M'))
-Device:     $(getprop ro.product.model), Android $(getprop ro.build.version.release)
+Device:     $(getprop ro.product.model) ($(getprop ro.product.device)), Android $(getprop ro.build.version.release) (SDK $sdk)
 ROM:        $rom
 Carrier:    $oper ($plmn), SIM slot $((slot + 1)), $net
-PhhIms:     installed $installed, boot guard $guard
+PhhIms:     installed $installed, overlays $overlays/3, IMS feature $feature, boot guard $guard
 IMS:        ${regs:-unknown}${since:+ since $since}${caps:+, $caps}
 VoLTE cfg:  $volte_cc
 Refresh:    $refresh

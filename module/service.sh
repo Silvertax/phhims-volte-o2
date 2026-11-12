@@ -24,6 +24,7 @@ if pm list features 2>/dev/null | grep -qx "feature:android.hardware.telephony.i
 else
   log "IMS feature: MISSING (ImsResolver will not start)"
 fi
+log "Android $(getprop ro.build.version.release) (SDK $(getprop ro.build.version.sdk)), device $(getprop ro.product.device)"
 log "SIM PLMN: $(getprop gsm.sim.operator.numeric)"
 # "cmd phone cc" is refused on user builds, so read the effective value from the dump instead
 log "carrier config: carrier_volte_available_bool = $(dumpsys carrier_config 2>/dev/null | awk -v key=carrier_volte_available_bool '
