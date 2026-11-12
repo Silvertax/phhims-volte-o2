@@ -53,15 +53,22 @@ log "power-save allowlist: $(dumpsys deviceidle whitelist 2>/dev/null | grep 'me
 # PhhIms call has no modem call, so the HAL spins until the audioserver watchdog kills
 # audioserver ~6 s later: the call connects late and the microphone never opens.
 # Release the HAL by reporting the calling slot ourselves while PhhIms sets up an outgoing call.
+# Also keeps the IMS registration state for the status button (see ims-state.sh).
+. "$MODDIR/ims-state.sh"
+rm -f "$IMS_STATE"
+
 set_slot_prop() {
   if command -v resetprop >/dev/null 2>&1; then resetprop -n "$1" "$2"; else setprop "$1" "$2"; fi
 }
 (
   held=
   while true; do
+    # IMS registration so far (it usually happens before this script runs), then follow the log
+    logcat -d -b radio -e "^($IMS_LOG_RE)\$" 2>/dev/null | while read -r line; do ims_update "$line"; done
     # -e matches the message text only, not the tag; the tag is checked below.
-    logcat -b radio -T 1 -e '^([0-9]+ createCallSession|Closing call)$' 2>/dev/null |
+    logcat -b radio -T 1 -e "^([0-9]+ createCallSession|Closing call|$IMS_LOG_RE)\$" 2>/dev/null |
     while read -r line; do
+      ims_update "$line"
       case "$line" in
         *"PHH MmTelFeature"*createCallSession*)
           slot=${line##*MmTelFeature: }; slot=${slot%% *}

@@ -18,16 +18,19 @@ plmn=$(field "$plmns" "$n")
 oper=$(field "$(getprop gsm.operator.alpha)" "$n")
 net=$(field "$(getprop gsm.network.type)" "$n")
 
-# IMS registration and capabilities, one entry per phone in slot order
-phone_dump=$(dumpsys phone 2>/dev/null)
-reg=$(echo "$phone_dump" | sed -n 's/^ *mImsMmTelRegistrationState = \([0-9]\).*/\1/p' | sed -n "${n}p")
-caps=$(echo "$phone_dump" | sed -n 's/.*mMmTelCapabilities=MmTel Capabilities - \[Voice: \([a-z]*\).* SMS: \([a-z]*\).*/voice \1, SMS \2/p' | sed -n "${n}p")
-case "$reg" in
-  2) regs="registered" ;;
-  1) regs="registering" ;;
-  0) regs="NOT registered" ;;
-  *) regs="unknown" ;;
-esac
+# IMS registration: kept by service.sh from the radio log (see ims-state.sh). If the file is
+# missing (service.sh not run yet), read the radio log buffer directly.
+. "$MODDIR/ims-state.sh"
+radio=$(logcat -d -b radio 2>/dev/null)
+if [ ! -s "$IMS_STATE" ]; then
+  IMS_STATE=$(mktemp 2>/dev/null || echo /dev/phhims-volte.ims.$$)
+  echo "$radio" | grep -E "$IMS_LOG_RE" | while read -r line; do ims_update "$line"; done
+  tmp_state=$IMS_STATE
+fi
+regs=$(sed -n 's/^state=//p' "$IMS_STATE" 2>/dev/null)
+since=$(sed -n 's/^since=//p' "$IMS_STATE" 2>/dev/null)
+caps=$(sed -n 's/^caps=//p' "$IMS_STATE" 2>/dev/null)
+[ -n "$tmp_state" ] && rm -f "$tmp_state"
 
 # Effective carrier config value: the dump lists the layers in order of precedence
 volte_cc=$(dumpsys carrier_config 2>/dev/null | awk -v key=carrier_volte_available_bool -v ph="$slot" '
@@ -46,10 +49,9 @@ else
   refresh="NOT scheduled"
 fi
 
-radio=$(logcat -d -b radio 2>/dev/null)
 last_fired=$(echo "$radio" | grep 'Alarm fired with me.phh.ims.ALARM_PERIODIC_REGISTER' | tail -n 1 | cut -c7-14)
 failed=$(echo "$radio" | grep -c 'Outgoing call setup failed')
-log_since=$(echo "$radio" | head -n 1 | cut -c7-11)
+log_since=$(echo "$radio" | grep -v '^-' | head -n 1 | cut -c7-11)
 
 calls=$(awk '/boot completed/ { c = 0 } /outgoing IMS call:/ { c++ } END { print c + 0 }' "$LOG" 2>/dev/null)
 dropped=$(awk '/boot attempt/ { c = 0 } /dropped stale package cache entry/ { c++ } END { print c + 0 }' "$LOG" 2>/dev/null)
@@ -66,11 +68,11 @@ rom=$(getprop ro.lineage.version)
 
 if [ "$installed" != yes ]; then
   verdict="PROBLEM: PhhIms is not installed. See the module log."
-elif [ "$reg" = 1 ]; then
+elif [ "$regs" = registering ]; then
   verdict="WAIT: IMS is still registering. Tap the button again in a minute."
-elif [ "$reg" = 0 ]; then
+elif [ "$regs" = "NOT registered" ]; then
   verdict="PROBLEM: IMS is not registered. Check the IMS APN (README, Troubleshooting)."
-elif [ -z "$reg" ]; then
+elif [ -z "$regs" ]; then
   verdict="CHECK: the IMS state could not be read on this ROM. Please send this report."
 elif [ -z "$alarm" ]; then
   verdict="PROBLEM: no registration refresh scheduled. VoLTE will stop within an hour."
@@ -85,7 +87,7 @@ Device:     $(getprop ro.product.model), Android $(getprop ro.build.version.rele
 ROM:        $rom
 Carrier:    $oper ($plmn), SIM slot $((slot + 1)), $net
 PhhIms:     installed $installed, boot guard $guard
-IMS:        $regs${caps:+, $caps}
+IMS:        ${regs:-unknown}${since:+ since $since}${caps:+, $caps}
 VoLTE cfg:  $volte_cc
 Refresh:    $refresh
 Last fired: ${last_fired:-not in radio log}

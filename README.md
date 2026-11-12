@@ -51,7 +51,7 @@ To uninstall, remove the module in KernelSU / Magisk and reboot.
 From v0.3 the module has an **Action** button in the module list of KernelSU and Magisk (Magisk 28 or later). It changes nothing and shows:
 
 - module version, device, ROM, carrier and network code
-- whether IMS is registered and offers voice and SMS
+- whether IMS is registered and offers voice and SMS (tracked from the radio log by `service.sh`, since not every ROM dumps this state)
 - the effective `carrier_volte_available_bool` and which config layer sets it
 - whether the registration refresh is scheduled, when it is due and when it last ran
 - outgoing VoLTE calls since boot and failed call setups in the radio log
