@@ -1,6 +1,6 @@
 # PhhIms VoLTE for the Galaxy S20 FE (r8q)
 
-KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. This is a fork of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)**, adapted and tested with **o2 Germany (Telefónica)**. **Testers with other carriers are wanted**, see [Other carriers](#other-carriers-testers-wanted).
+KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. This is a fork of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)**, adapted and tested with **o2 Germany (Telefónica)**. **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
 
 ## Credits
 
@@ -19,7 +19,7 @@ The details below refer to the o2 setup.
 
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
-- **Fixed:** with v0.1 VoLTE stopped working about an hour after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. The audio fix works from v0.2-o2, the registration fix from v0.2.2-o2. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10).
+- **Fixed:** with v0.1 VoLTE stopped working about an hour after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. The audio fix works from v0.2-o2, the registration fix from v0.2.2-o2. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10). From v0.3.3 an outgoing call that gets no audio no longer leaves a stuck call screen, see [Changes in v0.3.3](#changes-in-v033-2026-11-13).
 - **How far this is tested:** with v0.2.2-o2, incoming and outgoing calls still went over VoLTE 13 hours after boot, and the registration was refreshed on schedule. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
 - **Magisk:** not tested yet. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
@@ -66,6 +66,40 @@ From v0.3 the module has an **Action** button in the module list of KernelSU and
 
 The report is also saved to `/sdcard/Download/phhims-volte-status.txt`. It contains no phone numbers, so a screenshot or the file can be posted as it is.
 
+## Known issues
+
+- **Stuck call screen, fixed in v0.3.3** (one tester, Android 16, ONDO): after an outgoing call, the call screen stayed on "dialing" and could not be ended; only a reboot helped. The tester's log showed the cause, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). Not yet confirmed on the tester's phone. If it still happens, save a radio log (see Troubleshooting) **before** rebooting.
+- **Outgoing calls without audio** (same tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet.
+- The fix for the late, silent outgoing calls is a workaround in the module (see v0.2-o2, fix 2); the proper fix belongs in the ROM's audio HAL.
+
+## Testers wanted
+
+The goal is VoLTE on the r8q with as many custom ROMs and carriers as possible. So far it runs on two setups (see [Status](#status)). Every report helps, whether it works or not:
+
+- **Other carriers:** nothing in the fixes depends on the carrier, and the bundled PhhIms applies a persistent VoLTE carrier-config override for any SIM on its own (`ensureVolteCarrierConfig` in buddi0812's patch), so other carriers may well work already. A carrier that does not work yet can often be added once its log shows what it expects.
+- **Other ROMs:** any AOSP-based ROM on Android 17 or 16 (LineageOS, Lunaris, PixelOS, …). buddi0812's original module was made on PixelOS 17.
+- **Android 16:** supported as a test since v0.3.1, working for one tester so far.
+- **Other Android versions:** not supported yet, because the overlays have to be built for each Android version. If you run another version and want to test, say so in a report.
+
+The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE for o2 (262-03, -07, -08, -11, -77) and, since v0.3, Telekom (262-01), Vodafone (262-02) and 1&1 (262-23). Brands on these networks use the same codes. The list only matters on ROMs that honour the overlay; the status button shows which layer sets the value.
+
+**How to report:** install the module, add the IMS APN if needed (see [IMS APN](#ims-apn)), tap the status button two minutes after boot and open a [test report](../../issues/new?template=carrier_report.yml) with a screenshot of it. If calls fail, add a radio log taken right after the failing call (see [Troubleshooting](#troubleshooting)). The status report contains no phone numbers; the radio log does unless you use the masking command.
+
+## Troubleshooting
+
+- **Start with the status button.** Its last line names the most likely problem.
+- **Boot-loop protection:** if the phone fails to finish booting twice in a row, the module skips its mounts on the next boot. Creating `/data/adb/phhims-volte.disable` skips them manually.
+- **Logs for a call** (PhhIms logs to the radio buffer):
+  ```sh
+  su -c 'logcat -b all -v threadtime > /sdcard/Download/volte_log.txt'
+  ```
+  Make a few calls, stop with Ctrl+C and attach the file together with `/data/adb/phhims-volte.log` when [reporting an issue](../../issues/new/choose). The log contains phone numbers.
+- **Radio log right after a failing call**, with phone numbers masked (in Termux or `adb shell`):
+  ```sh
+  su -c "logcat -d -b radio | sed -E 's/[0-9]{7,}/NUM/g' > /sdcard/Download/volte-radio.txt"
+  ```
+  Look it over before posting it publicly.
+
 ## Changes in v0.3.3 (2026-11-13)
 
 **Stuck call screen after an outgoing call.** A tester's radio log showed the sequence: the network answered an outgoing call (200 OK), but no RTP arrived within 2 seconds, so PhhIms sent BYE and ended the call. It then reported the end with only the SIP Call-ID. `PhhMmTelFeature` matches such a report to the outgoing call only if it already knows that Call-ID, which it learns when the call is reported as progressing or connected; neither had happened. The report was taken for an unknown incoming call (`No IMS call listener for cancellation … not falling back to another call`), Android was never told, and the call screen stayed on "dialing". Hanging up did nothing either (`terminateCall without currentCall or pending outgoing INVITE`). The same applies when the other side hangs up before any RTP arrived.
@@ -101,35 +135,6 @@ Checked on the test device on 2026-11-11 with the cache entry removed by hand: A
 - **Diagnostics:** the log also shows the IMS feature state, the SIM network code, the VoLTE carrier-config value and the power-save state. The package check now matches `me.phh.ims` exactly instead of also matching the overlays.
 - **Build script:** `build.sh` builds the overlays and the module zip.
 - **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with its manifest changed (see v0.2-o2 above) and, from v0.3.3, two cancellation reports extended (see v0.3.3).
-
-## Other carriers (testers wanted)
-
-Only o2 Germany is tested. Nothing in the three fixes depends on the carrier, and the bundled PhhIms applies a persistent VoLTE carrier-config override for any SIM on its own (`ensureVolteCarrierConfig` in buddi0812's patch), so other carriers may well work already.
-
-The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE for o2 (262-03, -07, -08, -11, -77) and, since v0.3, Telekom (262-01), Vodafone (262-02) and 1&1 (262-23). Brands on these networks use the same codes. The list only matters on ROMs that honour the overlay; the status button shows which layer sets the value.
-
-**If you try it with another carrier,** please open a [carrier report](../../issues/new?template=carrier_report.yml), whether it works or not, with a screenshot of the status button and, if calls fail, a radio log taken right after the failing call. A carrier that does not work yet can often be added once its log shows what it expects.
-
-## Known issues
-
-- **Stuck call screen, fixed in v0.3.3** (one tester, Android 16, ONDO): after an outgoing call, the call screen stayed on "dialing" and could not be ended; only a reboot helped. The tester's log showed the cause, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). Not yet confirmed on the tester's phone. If it still happens, save a radio log (see Troubleshooting) **before** rebooting.
-- **Outgoing calls without audio** (same tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet.
-- The fix for the late, silent outgoing calls is a workaround in the module (see v0.2-o2, fix 2); the proper fix belongs in the ROM's audio HAL.
-
-## Troubleshooting
-
-- **Start with the status button.** Its last line names the most likely problem.
-- **Boot-loop protection:** if the phone fails to finish booting twice in a row, the module skips its mounts on the next boot. Creating `/data/adb/phhims-volte.disable` skips them manually.
-- **Logs for a call** (PhhIms logs to the radio buffer):
-  ```sh
-  su -c 'logcat -b all -v threadtime > /sdcard/Download/volte_log.txt'
-  ```
-  Make a few calls, stop with Ctrl+C and attach the file together with `/data/adb/phhims-volte.log` when [reporting an issue](../../issues/new/choose). The log contains phone numbers.
-- **Radio log right after a failing call**, with phone numbers masked (in Termux or `adb shell`):
-  ```sh
-  su -c "logcat -d -b radio | sed -E 's/[0-9]{7,}/NUM/g' > /sdcard/Download/volte-radio.txt"
-  ```
-  Look it over before posting it publicly.
 
 ## Building
 

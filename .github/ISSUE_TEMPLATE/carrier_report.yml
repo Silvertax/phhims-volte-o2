@@ -1,6 +1,6 @@
-name: Carrier report
-description: Tell us whether VoLTE works with your carrier, also if it does
-title: "Carrier report: "
+name: Test report (carrier / ROM)
+description: Tell us whether VoLTE works with your carrier and ROM, also if it does
+title: "Test report: "
 labels: [carrier]
 body:
   - type: markdown
