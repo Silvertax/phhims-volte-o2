@@ -13,7 +13,7 @@ KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Ga
 Experimental. Tested so far:
 
 - **o2 Germany (262-07):** Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud, Android 17), KernelSU v3.3.1 in the kernel, SELinux enforcing, with a dedicated IMS APN. In daily use since v0.2.2-o2.
-- **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. One open issue, see [Known issues](#known-issues).
+- **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3, see [Known issues](#known-issues).
 
 The details below refer to the o2 setup.
 
@@ -66,6 +66,14 @@ From v0.3 the module has an **Action** button in the module list of KernelSU and
 
 The report is also saved to `/sdcard/Download/phhims-volte-status.txt`. It contains no phone numbers, so a screenshot or the file can be posted as it is.
 
+## Changes in v0.3.3 (2026-11-13)
+
+**Stuck call screen after an outgoing call.** A tester's radio log showed the sequence: the network answered an outgoing call (200 OK), but no RTP arrived within 2 seconds, so PhhIms sent BYE and ended the call. It then reported the end with only the SIP Call-ID. `PhhMmTelFeature` matches such a report to the outgoing call only if it already knows that Call-ID, which it learns when the call is reported as progressing or connected; neither had happened. The report was taken for an unknown incoming call (`No IMS call listener for cancellation … not falling back to another call`), Android was never told, and the call screen stayed on "dialing". Hanging up did nothing either (`terminateCall without currentCall or pending outgoing INVITE`). The same applies when the other side hangs up before any RTP arrived.
+
+- Fix: both reports now carry `outgoingCall=true`, as PhhIms already does for a local CANCEL, so `PhhMmTelFeature` routes them to the outgoing call and calls `callSessionTerminated()`. [`patches/0003-report-no-media-outgoing-end.patch`](patches/0003-report-no-media-outgoing-end.patch) is the source change; `build.sh` applies the same change to the prebuilt APK's bytecode with [`tools/patch-phhims-dex.py`](tools/patch-phhims-dex.py) (baksmali/smali) and re-signs it.
+- Open: why the network sent no audio on that call. The fix makes such a call end cleanly instead of hanging.
+- The module's audio workaround did not act on that call (`vendor.calls.slot_id0` was already `2`, not `0`), so it is not involved.
+
 ## Changes in v0.2-o2 (2026-11-10)
 
 Two separate faults, both found on the test device. See the correction for fix 1 below.
@@ -92,7 +100,7 @@ Checked on the test device on 2026-11-11 with the cache entry removed by hand: A
 - **Power management:** PhhIms is on the system power-save allowlist (`allow-in-power-save`), so Doze and App Standby don't restrict it.
 - **Diagnostics:** the log also shows the IMS feature state, the SIM network code, the VoLTE carrier-config value and the power-save state. The package check now matches `me.phh.ims` exactly instead of also matching the overlays.
 - **Build script:** `build.sh` builds the overlays and the module zip.
-- **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with only its manifest changed (see v0.2-o2 above).
+- **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with its manifest changed (see v0.2-o2 above) and, from v0.3.3, two cancellation reports extended (see v0.3.3).
 
 ## Other carriers (testers wanted)
 
@@ -104,7 +112,8 @@ The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE 
 
 ## Known issues
 
-- **Stuck call screen** (one tester, Android 16, ONDO): twice, after the other side hung up an outgoing call, the call screen stayed and the call could not be ended; only a reboot helped. It has not happened again since, and the cause is unknown. If you see it, save a radio log (see Troubleshooting) **before** rebooting.
+- **Stuck call screen, fixed in v0.3.3** (one tester, Android 16, ONDO): after an outgoing call, the call screen stayed on "dialing" and could not be ended; only a reboot helped. The tester's log showed the cause, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). Not yet confirmed on the tester's phone. If it still happens, save a radio log (see Troubleshooting) **before** rebooting.
+- **Outgoing calls without audio** (same tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet.
 - The fix for the late, silent outgoing calls is a workaround in the module (see v0.2-o2, fix 2); the proper fix belongs in the ROM's audio HAL.
 
 ## Troubleshooting
@@ -124,13 +133,14 @@ The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE 
 
 ## Building
 
-**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch) and [`patches/0002-drop-protected-broadcast.patch`](patches/0002-drop-protected-broadcast.patch):
+**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch), [`patches/0002-drop-protected-broadcast.patch`](patches/0002-drop-protected-broadcast.patch) and [`patches/0003-report-no-media-outgoing-end.patch`](patches/0003-report-no-media-outgoing-end.patch):
 
 ```sh
 git clone https://github.com/krazey/ims && cd ims
 git checkout a3fec01ebc4f51c39026565c4a451fef454637fa
 git apply /path/to/0001-phhims-for-r8q-pixelos.patch
 git apply /path/to/0002-drop-protected-broadcast.patch
+git apply /path/to/0003-report-no-media-outgoing-end.patch
 # edit app/build.gradle: set the SDK path in the bootstrapClasspath line (android-33 platform jar)
 ./gradlew assembleDebug      # Gradle 8.5, AGP 8.2, Kotlin 1.8.10, NDK 25.1.8937393
 ```
@@ -140,11 +150,11 @@ git apply /path/to/0002-drop-protected-broadcast.patch
 ```sh
 BUILD_TOOLS=~/Android/Sdk/build-tools/35.0.0 \
 ANDROID_JAR=~/Android/Sdk/platforms/android-33/android.jar \
-KEYSTORE=my-key.jks \
+KEYSTORE=my-key.jks SMALI_DIR=path/to/smali-jars \
 PHHIMS_APK=path/to/PhhIms.apk ./build.sh
 ```
 
-The zip ends up in `dist/`. The script needs `python3`: it removes the `<protected-broadcast>` declaration from `PHHIMS_APK` if it is still there and re-signs the APK with `KEYSTORE`; an APK built with patch 0002 is packed as it is. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
+The zip ends up in `dist/`. The script needs `python3` and `java`, and in `SMALI_DIR` the baksmali/smali 2.5.2 jars with their dependencies (the list with checksums is in the workflow). It removes the `<protected-broadcast>` declaration from `PHHIMS_APK` and applies the v0.3.3 bytecode fix if they are not there yet, and re-signs the APK with `KEYSTORE` if it changed anything; an APK built with patches 0002 and 0003 is packed as it is. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
 
 **Releases:** set `version` and `versionCode` in `module/module.prop`, add the changes to `CHANGELOG.md`, merge, then publish a GitHub release whose tag equals `version`. The workflow in `.github/workflows/build.yml` builds the zip, attaches it to the release and updates `update.json`. It signs the overlays with the repository secrets `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` if they are set, otherwise with a key made for that build.
 

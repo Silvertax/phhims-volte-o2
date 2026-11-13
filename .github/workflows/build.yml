@@ -29,6 +29,26 @@ jobs:
           echo "$PHHIMS_ZIP_SHA256  /tmp/base.zip" | sha256sum -c -
           unzip -q -j /tmp/base.zip ovl/system/priv-app/PhhIms/PhhIms.apk -d /tmp/apk
 
+      - name: Fetch smali
+        run: |
+          # baksmali/smali 2.5.2 and their dependencies, for the PhhIms bytecode patch (build.sh)
+          mkdir -p /tmp/smali && cd /tmp/smali
+          m=https://repo1.maven.org/maven2
+          while read -r sum path; do
+            curl -fsSL --retry 3 -o "${path##*/}" "$m/$path"
+            echo "$sum  ${path##*/}" | sha256sum -c -
+          done <<'EOF'
+          1ed236266d7dc4907aade0b19a34f77efac25342b63c8ace52e579039941b389 org/smali/baksmali/2.5.2/baksmali-2.5.2.jar
+          136c5c4653d6531bd7b6f10f35f8691cb96432e727d30b4d5579826ee01e9419 org/smali/smali/2.5.2/smali-2.5.2.jar
+          5a5c8982d8bd7d6e3bb1a0713049e3c78b719ec32b20f6b619885cec30a0dd61 org/smali/dexlib2/2.5.2/dexlib2-2.5.2.jar
+          4f580a9cff3ebb83cb3fd20bec88e37e4f183796ca652732992611620282daea org/smali/util/2.5.2/util-2.5.2.jar
+          686404f2d1d4d221911f96bd627ff60dac2226a5dfa6fb8ba517073eb97ec0ef com/google/guava/guava/27.1-android/guava-27.1-android.jar
+          156be736199c990321d9ff77090b199629cfc9865e2d6c13f7cd291bb1641817 com/beust/jcommander/1.64/jcommander-1.64.jar
+          ce3fc8ecb10f39e9a3cddcbb2ce350d272d9cd3d0b1e18e6fe73c3b9389c8734 org/antlr/antlr-runtime/3.5.2/antlr-runtime-3.5.2.jar
+          f66ce72e965e5301cb0f020e54d2ba6ad76feb91b3cbfc30dbbf00c06a6df6d7 org/antlr/stringtemplate/3.2.1/stringtemplate-3.2.1.jar
+          88fbda4b912596b9f56e8e12e580cc954bacfb51776ecfddd3e18fc1cf56dc4c antlr/antlr/2.7.7/antlr-2.7.7.jar
+          EOF
+
       - name: Signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -52,7 +72,7 @@ jobs:
           bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
           jar=$(ls "$ANDROID_HOME"/platforms/*/android.jar | sort -V | tail -n 1)
           echo "build-tools: $bt, android.jar: $jar"
-          BUILD_TOOLS="$bt" ANDROID_JAR="$jar" KEYSTORE=/tmp/key.jks PHHIMS_APK=/tmp/apk/PhhIms.apk ./build.sh
+          BUILD_TOOLS="$bt" ANDROID_JAR="$jar" KEYSTORE=/tmp/key.jks SMALI_DIR=/tmp/smali PHHIMS_APK=/tmp/apk/PhhIms.apk ./build.sh
           version=$(sed -n 's/^version=//p' module/module.prop)
           code=$(sed -n 's/^versionCode=//p' module/module.prop)
           zip="dist/phhims_volte-$version.zip"

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.3 (2026-11-13)
+
+- Fixed: a stuck call screen after an outgoing call that the network answered without sending audio, or that the other side ended before any audio arrived. PhhIms ended such a call but did not tell Android, so the screen stayed on "dialing", hanging up did nothing and only a reboot helped. The call now ends normally. Found in a tester's log (Android 16, ONDO); the cause is in PhhIms, the module patches it.
+- The PhhIms app is now signed by the build. Android accepts the new signature of a system app on the next boot and keeps its data.
+
 ## v0.3.2 (2026-11-13)
 
 - Status button: recognises when the network offers no IMS server address (P-CSCF), the usual sign of a missing IMS APN, and shows the APN steps. Before, it kept saying "WAIT: IMS is still registering", even hours after boot.
