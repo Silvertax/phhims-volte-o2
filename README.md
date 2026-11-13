@@ -10,7 +10,12 @@ KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Ga
 
 ## Status
 
-Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud), KernelSU v3.3.1 in the kernel, SELinux enforcing, o2 Germany (262-07), with a dedicated IMS APN.
+Experimental. Tested so far:
+
+- **o2 Germany (262-07):** Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud, Android 17), KernelSU v3.3.1 in the kernel, SELinux enforcing, with a dedicated IMS APN. In daily use since v0.2.2-o2.
+- **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. One open issue, see [Known issues](#known-issues).
+
+The details below refer to the o2 setup.
 
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
@@ -28,7 +33,7 @@ Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS
 
 If IMS does not register, check the APNs first: many carriers need a separate APN `ims` with the type `ims`, and no other APN may carry that type. Otherwise the phone uses the internet APN for IMS, the network gives no IMS server address (P-CSCF), PhhIms never registers and calls go out as classic calls. On an LTE-only network such calls stay silent. From v0.3.2 the status button names this case (`IMS server: none offered by the network`).
 
-Seen so far with o2 Germany (the preset APN `internet` also had the type `ims`) and with ONDO Mongolia (reported by a tester; whether the fix works there is not confirmed yet). Fix:
+Seen so far with o2 Germany (the preset APN `internet` also had the type `ims`) and with ONDO Mongolia, where IMS registered once the IMS APN was added (reported by a tester). Fix:
 
 1. Settings → Network & internet → SIMs → your SIM → Access Point Names
 2. Add an APN: APN `ims`, APN type `ims`, APN protocol IPv4/IPv6
@@ -41,7 +46,7 @@ Seen so far with o2 Germany (the preset APN `internet` also had the type `ims`) 
 
 1. Download the latest `phhims_volte-*.zip` from [Releases](../../releases/latest).
 2. KernelSU / Magisk → Modules → Install → select the zip → reboot.
-3. A minute after boot, tap the module's **Action** button in KernelSU / Magisk (see [Status button](#status-button)). It should end with `OK: VoLTE is ready.`
+3. Two minutes after boot, tap the module's **Action** button in KernelSU / Magisk (see [Status button](#status-button)). It should end with `OK: VoLTE is ready.`
 4. Turn on VoLTE under Settings → Network & internet → SIMs → your SIM, then test a call and an SMS.
 
 Later versions can be installed from the module list in KernelSU / Magisk: the module carries an update link (`updateJson`), so the manager offers an update when a new release is out. This works from v0.2.1-o2 on.
@@ -97,6 +102,11 @@ The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE 
 
 **If you try it with another carrier,** please open a [carrier report](../../issues/new?template=carrier_report.yml), whether it works or not, with a screenshot of the status button and, if calls fail, a radio log taken right after the failing call. A carrier that does not work yet can often be added once its log shows what it expects.
 
+## Known issues
+
+- **Stuck call screen** (one tester, Android 16, ONDO): twice, after the other side hung up an outgoing call, the call screen stayed and the call could not be ended; only a reboot helped. It has not happened again since, and the cause is unknown. If you see it, save a radio log (see Troubleshooting) **before** rebooting.
+- The fix for the late, silent outgoing calls is a workaround in the module (see v0.2-o2, fix 2); the proper fix belongs in the ROM's audio HAL.
+
 ## Troubleshooting
 
 - **Start with the status button.** Its last line names the most likely problem.
@@ -106,6 +116,11 @@ The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE 
   su -c 'logcat -b all -v threadtime > /sdcard/Download/volte_log.txt'
   ```
   Make a few calls, stop with Ctrl+C and attach the file together with `/data/adb/phhims-volte.log` when [reporting an issue](../../issues/new/choose). The log contains phone numbers.
+- **Radio log right after a failing call**, with phone numbers masked (in Termux or `adb shell`):
+  ```sh
+  su -c "logcat -d -b radio | sed -E 's/[0-9]{7,}/NUM/g' > /sdcard/Download/volte-radio.txt"
+  ```
+  Look it over before posting it publicly.
 
 ## Building
 
