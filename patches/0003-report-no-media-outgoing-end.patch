@@ -1,0 +1,24 @@
+diff --git a/app/src/main/java/me/phh/sip/SipOutgoingCallConnectionLogs.kt b/app/src/main/java/me/phh/sip/SipOutgoingCallConnectionLogs.kt
+index 997c8e9..635574c 100644
+--- a/app/src/main/java/me/phh/sip/SipOutgoingCallConnectionLogs.kt
++++ b/app/src/main/java/me/phh/sip/SipOutgoingCallConnectionLogs.kt
+@@ -53,6 +53,7 @@ internal object SipOutgoingCallConnectionLogs {
+             "statusCode" to "480",
+             "statusString" to "No post-answer RTP",
+             "remoteNoMediaRelease" to "true",
++            "outgoingCall" to "true",
+         )
+ 
+     fun postAnswerRtpTimeoutFailedLog(callId: String): String =
+diff --git a/app/src/main/java/me/phh/sip/SipRemoteEndExtrasBuilder.kt b/app/src/main/java/me/phh/sip/SipRemoteEndExtrasBuilder.kt
+index 297346e..1e96c91 100644
+--- a/app/src/main/java/me/phh/sip/SipRemoteEndExtrasBuilder.kt
++++ b/app/src/main/java/me/phh/sip/SipRemoteEndExtrasBuilder.kt
+@@ -18,6 +18,7 @@ object SipRemoteEndExtrasBuilder {
+                 "statusCode" to "480",
+                 "statusString" to "No post-answer RTP before BYE",
+                 "remoteNoMediaRelease" to "true",
++                "outgoingCall" to "true",
+             )
+         }
+ 
