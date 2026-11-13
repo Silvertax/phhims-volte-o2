@@ -30,6 +30,9 @@ fi
 regs=$(sed -n 's/^state=//p' "$IMS_STATE" 2>/dev/null)
 since=$(sed -n 's/^since=//p' "$IMS_STATE" 2>/dev/null)
 caps=$(sed -n 's/^caps=//p' "$IMS_STATE" 2>/dev/null)
+nopcscf=$(sed -n 's/^nopcscf=//p' "$IMS_STATE" 2>/dev/null)
+changed=$(sed -n 's/^changed=//p' "$IMS_STATE" 2>/dev/null)
+nopcscf_first=$(sed -n 's/^nopcscf_first=//p' "$IMS_STATE" 2>/dev/null)
 [ -n "$tmp_state" ] && rm -f "$tmp_state"
 
 # Effective carrier config value: the dump lists the layers in order of precedence
@@ -75,6 +78,21 @@ guard="off"
 rom=$(getprop ro.lineage.version)
 [ -n "$rom" ] && rom="LineageOS $rom" || rom=$(getprop ro.build.display.id)
 
+# How long IMS has been in its current state. Without the state file (service.sh has not run
+# yet) the uptime is the best guess.
+if [ -n "$tmp_state" ] || [ -z "$changed" ]; then
+  age=$up
+else
+  age=$(( $(date +%s) - changed ))
+  [ "$age" -lt 0 ] && age=0
+fi
+# How long the network has been refusing an IMS server address without a registration in between
+if [ -n "$tmp_state" ] || [ -z "$nopcscf_first" ]; then
+  nopcscf_age=$up
+else
+  nopcscf_age=$(( $(date +%s) - nopcscf_first ))
+fi
+
 if [ "$installed" != yes ]; then
   verdict="PROBLEM: PhhIms is not installed. See the module log."
 elif [ "$overlays" -lt 3 ]; then
@@ -83,6 +101,10 @@ elif [ "$feature" != declared ]; then
   verdict="PROBLEM: the IMS feature is not declared, so Android does not start IMS. See the module log."
 elif [ -z "$regs" ] && [ "$up" -lt 180 ]; then
   verdict="WAIT: the phone started less than 3 minutes ago. Tap again in a minute."
+elif [ "$regs" != registered ] && [ -n "$nopcscf" ] && [ "$nopcscf_age" -ge 120 ]; then
+  verdict="PROBLEM: the network gives no IMS server address (P-CSCF), so IMS cannot register and calls do not use VoLTE. Usually a separate IMS APN is missing: add an APN with APN \"ims\" and APN type \"ims\" (protocol IPv4/IPv6), remove \"ims\" from the type of your internet APN, then toggle airplane mode. Details: README, IMS APN."
+elif [ "$regs" = registering ] && [ "$age" -ge 300 ]; then
+  verdict="PROBLEM: IMS has been registering for $((age / 60)) min without success. Please send this report and a radio log (README, Troubleshooting)."
 elif [ "$regs" = registering ]; then
   verdict="WAIT: IMS is still registering. Tap the button again in a minute."
 elif [ "$regs" = "NOT registered" ]; then
@@ -102,7 +124,8 @@ Device:     $(getprop ro.product.model) ($(getprop ro.product.device)), Android 
 ROM:        $rom
 Carrier:    $oper ($plmn), SIM slot $((slot + 1)), $net
 PhhIms:     installed $installed, overlays $overlays/3, IMS feature $feature, boot guard $guard
-IMS:        ${regs:-unknown}${since:+ since $since}${caps:+, $caps}
+IMS:        ${regs:-unknown}${since:+ since $since}${caps:+, $caps}${nopcscf:+
+IMS server: none offered by the network (last at $nopcscf)}
 VoLTE cfg:  $volte_cc
 Refresh:    $refresh
 Last fired: ${last_fired:-not in radio log}
