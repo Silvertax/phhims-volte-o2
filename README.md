@@ -26,14 +26,16 @@ Experimental. Tested on one device: Galaxy S20 FE SM-G780G, unofficial LineageOS
 
 ## IMS APN
 
-If IMS does not register, check the APNs first: many carriers need a separate APN `ims` with the type `ims`, and no other APN may carry that type.
+If IMS does not register, check the APNs first: many carriers need a separate APN `ims` with the type `ims`, and no other APN may carry that type. Otherwise the phone uses the internet APN for IMS, the network gives no IMS server address (P-CSCF), PhhIms never registers and calls go out as classic calls. On an LTE-only network such calls stay silent. From v0.3.2 the status button names this case (`IMS server: none offered by the network`).
 
-**o2:** on the tested ROM, the preset o2 APN `internet` also had the type `ims` and there was no separate IMS APN, so IMS stayed unregistered. Fix:
+Seen so far with o2 Germany (the preset APN `internet` also had the type `ims`) and with ONDO Mongolia (reported by a tester; whether the fix works there is not confirmed yet). Fix:
 
-1. Settings → Network & internet → SIMs → your o2 SIM → Access Point Names
+1. Settings → Network & internet → SIMs → your SIM → Access Point Names
 2. Add an APN: APN `ims`, APN type `ims`, APN protocol IPv4/IPv6
-3. Remove `ims` from the APN type of the `internet` APN
-4. Toggle airplane mode on and off
+3. Open your internet APN: if its APN type is empty or contains `ims`, set it to `default,supl,mms`
+4. Toggle airplane mode on and off, wait two minutes, tap the status button
+
+`ims` is the usual name of the IMS APN. If IMS still does not register, ask your carrier for theirs.
 
 ## Installation
 

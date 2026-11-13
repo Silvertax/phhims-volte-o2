@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.2 (2026-11-13)
+
+- Status button: recognises when the network offers no IMS server address (P-CSCF), the usual sign of a missing IMS APN, and shows the APN steps. Before, it kept saying "WAIT: IMS is still registering", even hours after boot.
+- Status button: reports a problem when IMS has been registering for more than 5 minutes.
+
 ## v0.3.1 (2026-11-12)
 
 - New: Android 16 support as a test. The module carries overlays for Android 17 (SDK 37) and Android 16 (SDK 36) and installs the matching set. Untested on Android 16 so far.
