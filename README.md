@@ -13,7 +13,7 @@ KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Ga
 Experimental. Tested so far:
 
 - **o2 Germany (262-07):** Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud, Android 17), KernelSU v3.3.1 in the kernel, SELinux enforcing, with a dedicated IMS APN. In daily use since v0.2.2-o2.
-- **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3, see [Known issues](#known-issues).
+- **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), KernelSU 3.3.1 with the Shadow kernel, v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3, see [Known issues](#known-issues).
 
 The details below refer to the o2 setup.
 
@@ -21,7 +21,7 @@ The details below refer to the o2 setup.
 - **Not available:** Wi-Fi calling, video calls
 - **Fixed:** with v0.1 VoLTE stopped working about an hour after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. The audio fix works from v0.2-o2, the registration fix from v0.2.2-o2. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10). From v0.3.3 an outgoing call that gets no audio no longer leaves a stuck call screen, see [Changes in v0.3.3](#changes-in-v033-2026-11-13).
 - **How far this is tested:** with v0.2.2-o2, incoming and outgoing calls still went over VoLTE 13 hours after boot, and the registration was refreshed on schedule. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
-- **Magisk:** not tested yet. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
+- **Magisk:** not tested yet; both setups above use KernelSU. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
 ## Requirements
 
