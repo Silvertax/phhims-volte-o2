@@ -22,6 +22,15 @@
 # returns the main outbound flow (mainSipWriterForOutbound, which reopens a dormant flow).
 # Source equivalent: patches/0004-local-bye-on-main-flow.patch.
 #
+# v0.3.6, speakerphone button does nothing: Telecom already switches a PhhIms call to
+# MODE_IN_COMMUNICATION, then SipAudioRecordStarter sets the same mode again whenever the
+# microphone starts. AudioService makes the most recent privileged requester the mode owner, and
+# only the mode owner's communication device is applied: Telecom's setCommunicationDevice(speaker)
+# was recorded but ignored ("preferredCommunicationDevice: null", seen in a tester's dumpsys audio;
+# PhhIms does not run as the system UID here, so it is not the same client as Telecom). Fix: the
+# mode is only set if it is not MODE_IN_COMMUNICATION already, as the downlink thread already does.
+# Source equivalent: patches/0005-keep-telecom-audio-mode-owner.patch.
+#
 #   SMALI_DIR=dir/with/baksmali,smali,dexlib2,...jars tools/patch-phhims-dex.py in.apk out.apk
 #
 # Exit 0: patched, 3: already patched (out.apk not written), anything else: error.
@@ -113,6 +122,30 @@ def bye_on_main_flow(body, signature):
     return body.replace(BYE_WRITER_OLD, BYE_WRITER_NEW)
 
 
+MODE_SET_OLD = """    const/4 v1, 0x3
+
+    invoke-virtual {p2, v1}, Landroid/media/AudioManager;->setMode(I)V
+"""
+
+MODE_SET_NEW = """    const/4 v1, 0x3
+
+    if-eq v0, v1, :phh_mode_already_set
+
+    invoke-virtual {p2, v1}, Landroid/media/AudioManager;->setMode(I)V
+
+    :phh_mode_already_set
+"""
+
+
+def keep_mode_owner(body, signature):
+    """v0.3.6: setMode(MODE_IN_COMMUNICATION) only if the mode (v0) is not 3 already."""
+    if ":phh_mode_already_set" in body:
+        return None
+    if body.count(MODE_SET_OLD) != 1 or 'move-result v0\n\n    .line 17\n    .local v0, "previousAudioMode":I' not in body:
+        die("unexpected body in " + signature)
+    return body.replace(MODE_SET_OLD, MODE_SET_NEW)
+
+
 # (smali file, method signature line, edit function)
 EDITS = [
     (
@@ -130,6 +163,12 @@ EDITS = [
         ".method public final localDialogRequestWriter(Ljava/io/OutputStream;Ljava/io/OutputStream;"
         "Lkotlin/jvm/functions/Function0;)Ljava/io/OutputStream;",
         bye_on_main_flow,
+    ),
+    (
+        "me/phh/sip/SipAudioRecordStarter.smali",
+        ".method public final startForImsUplink(Ljava/lang/String;Landroid/media/AudioManager;"
+        "Landroid/media/AudioRecord;Landroid/media/MediaCodec;)Ljava/lang/Integer;",
+        keep_mode_owner,
     ),
 ]
 

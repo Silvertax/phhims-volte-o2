@@ -20,7 +20,7 @@ The details below refer to the o2 setup.
 
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
-- **Fixed:** with v0.1 VoLTE stopped working about an hour after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. The audio fix works from v0.2-o2, the registration fix from v0.2.2-o2. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10). From v0.3.3 an outgoing call that gets no audio no longer leaves a stuck call screen, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). From v0.3.4 hanging up an incoming call first also ends it for the other side on networks that were ignoring that hang-up, see [Changes in v0.3.4](#changes-in-v034-2026-11-19).
+- **Fixed:** with v0.1 VoLTE stopped working about an hour after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. The audio fix works from v0.2-o2, the registration fix from v0.2.2-o2. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10). From v0.3.3 an outgoing call that gets no audio no longer leaves a stuck call screen, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). From v0.3.4 hanging up an incoming call first also ends it for the other side on networks that were ignoring that hang-up, see [Changes in v0.3.4](#changes-in-v034-2026-11-19). From v0.3.6 the speakerphone button works, see [Changes in v0.3.6](#changes-in-v036-2026-11-20).
 - **How far this is tested:** with v0.2.2-o2, incoming and outgoing calls still went over VoLTE 13 hours after boot, and the registration was refreshed on schedule. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
 - **Magisk:** not tested yet; the o2 and ONDO setups above use KernelSU. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
@@ -69,6 +69,7 @@ The report is also saved to `/sdcard/Download/phhims-volte-status.txt`. It conta
 
 ## Known issues
 
+- **Speakerphone button did nothing, fixed in v0.3.6** (reported on VIVACOM, o2 and by another user): the call stayed on the earpiece. A tester's audio dump showed the cause, see [Changes in v0.3.6](#changes-in-v036-2026-11-20). Not yet confirmed on a phone.
 - **Other phone stayed in the call, fixed in v0.3.4** (a tester on VIVACOM, Bulgaria): after hanging up an incoming call first, the caller's phone stayed in the call. The tester's log showed the cause, see [Changes in v0.3.4](#changes-in-v034-2026-11-19). Not yet confirmed on the tester's phone.
 - **Stuck call screen, fixed in v0.3.3** (one tester, Android 16, ONDO): after an outgoing call, the call screen stayed on "dialing" and could not be ended; only a reboot helped. The tester's log showed the cause, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). Not yet confirmed on the tester's phone. If it still happens, save a radio log (see Troubleshooting) **before** rebooting.
 - **Outgoing calls without audio** (same tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet.
@@ -101,6 +102,12 @@ The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE 
   su -c "logcat -d -b radio | sed -E 's/[0-9]{7,}/NUM/g' > /sdcard/Download/volte-radio.txt"
   ```
   Look it over before posting it publicly.
+
+## Changes in v0.3.6 (2026-11-20)
+
+**Speakerphone button does nothing.** A tester's `dumpsys audio` during a call (VIVACOM, LineageOS 24.0) showed: Telecom puts the call in `MODE_IN_COMMUNICATION` itself, then PhhIms sets the same mode again when its microphone starts (`SipAudioRecordStarter`). AudioService makes the most recent privileged requester the audio mode owner (`Mode owner: me.phh.ims`), and only the mode owner's communication device counts. Telecom's `setCommunicationDevice(speaker)` was recorded but not applied (`updateCommunicationRoute, preferredCommunicationDevice: null`, active device: earpiece). Whenever Telecom briefly became the owner again (hold, end of call), the speaker switched on at once. The original PhhIms runs as the system UID, the same as Telecom, which hides the problem there.
+
+- Fix: PhhIms sets `MODE_IN_COMMUNICATION` only if the mode is not already set, as its downlink thread already does. If Telecom still has `MODE_IN_CALL` at that moment, nothing changes. [`patches/0005-keep-telecom-audio-mode-owner.patch`](patches/0005-keep-telecom-audio-mode-owner.patch) is the source change; `build.sh` applies it to the bytecode like the earlier fixes.
 
 ## Changes in v0.3.4 (2026-11-19)
 
@@ -143,11 +150,11 @@ Checked on the test device on 2026-11-11 with the cache entry removed by hand: A
 - **Power management:** PhhIms is on the system power-save allowlist (`allow-in-power-save`), so Doze and App Standby don't restrict it.
 - **Diagnostics:** the log also shows the IMS feature state, the SIM network code, the VoLTE carrier-config value and the power-save state. The package check now matches `me.phh.ims` exactly instead of also matching the overlays.
 - **Build script:** `build.sh` builds the overlays and the module zip.
-- **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with its manifest changed (see v0.2-o2 above) and, from v0.3.3, two cancellation reports extended (see v0.3.3) and, from v0.3.4, the local BYE sent over the main flow (see v0.3.4).
+- **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with its manifest changed (see v0.2-o2 above) and, from v0.3.3, two cancellation reports extended (see v0.3.3), from v0.3.4 the local BYE sent over the main flow (see v0.3.4) and from v0.3.6 the audio mode left to Telecom (see v0.3.6).
 
 ## Building
 
-**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch), [`patches/0002-drop-protected-broadcast.patch`](patches/0002-drop-protected-broadcast.patch), [`patches/0003-report-no-media-outgoing-end.patch`](patches/0003-report-no-media-outgoing-end.patch) and [`patches/0004-local-bye-on-main-flow.patch`](patches/0004-local-bye-on-main-flow.patch):
+**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch), [`patches/0002-drop-protected-broadcast.patch`](patches/0002-drop-protected-broadcast.patch), [`patches/0003-report-no-media-outgoing-end.patch`](patches/0003-report-no-media-outgoing-end.patch), [`patches/0004-local-bye-on-main-flow.patch`](patches/0004-local-bye-on-main-flow.patch) and [`patches/0005-keep-telecom-audio-mode-owner.patch`](patches/0005-keep-telecom-audio-mode-owner.patch):
 
 ```sh
 git clone https://github.com/krazey/ims && cd ims
@@ -156,6 +163,7 @@ git apply /path/to/0001-phhims-for-r8q-pixelos.patch
 git apply /path/to/0002-drop-protected-broadcast.patch
 git apply /path/to/0003-report-no-media-outgoing-end.patch
 git apply /path/to/0004-local-bye-on-main-flow.patch
+git apply /path/to/0005-keep-telecom-audio-mode-owner.patch
 # edit app/build.gradle: set the SDK path in the bootstrapClasspath line (android-33 platform jar)
 ./gradlew assembleDebug      # Gradle 8.5, AGP 8.2, Kotlin 1.8.10, NDK 25.1.8937393
 ```
@@ -169,7 +177,7 @@ KEYSTORE=my-key.jks SMALI_DIR=path/to/smali-jars \
 PHHIMS_APK=path/to/PhhIms.apk ./build.sh
 ```
 
-The zip ends up in `dist/`. The script needs `python3` and `java`, and in `SMALI_DIR` the baksmali/smali 2.5.2 jars with their dependencies (the list with checksums is in the workflow). It removes the `<protected-broadcast>` declaration from `PHHIMS_APK` and applies the bytecode fixes of v0.3.3 and v0.3.4 that are not there yet, and re-signs the APK with `KEYSTORE` if it changed anything; an APK built with patches 0002 to 0004 is packed as it is. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
+The zip ends up in `dist/`. The script needs `python3` and `java`, and in `SMALI_DIR` the baksmali/smali 2.5.2 jars with their dependencies (the list with checksums is in the workflow). It removes the `<protected-broadcast>` declaration from `PHHIMS_APK` and applies the bytecode fixes of v0.3.3 to v0.3.6 that are not there yet, and re-signs the APK with `KEYSTORE` if it changed anything; an APK built with patches 0002 to 0005 is packed as it is. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
 
 **Releases:** set `version` and `versionCode` in `module/module.prop`, add the changes to `CHANGELOG.md`, merge, then publish a GitHub release whose tag equals `version`. The workflow in `.github/workflows/build.yml` builds the zip, attaches it to the release and updates `update.json`. It signs the overlays with the repository secrets `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` if they are set, otherwise with a key made for that build.
 

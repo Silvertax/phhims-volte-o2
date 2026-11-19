@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.6 (2026-11-20)
+
+- Fixed: the speakerphone button did nothing during a call. PhhIms took over the call's audio mode, and Android then ignored the speaker request from the phone app. PhhIms now leaves the audio mode to the phone app when it has already set it. Found in a tester's audio dump; the module patches PhhIms.
+
 ## v0.3.5 (2026-11-19)
 
 - Status button: in the first minute after a reboot it showed the IMS state and call count from before the reboot, and could report "PROBLEM: IMS is not registered" although IMS was fine. It now only shows the current boot.
