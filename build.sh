@@ -35,8 +35,9 @@ mkdir -p "$OUT/ovl/product/overlay" "$OUT/ovl/system/priv-app/PhhIms"
 # its change; the APK is re-signed if either changed it.
 # 1. Remove the manifest's <protected-broadcast>: with it Android rejects the registration refresh
 #    alarm, because this build does not run as the system UID.
-# 2. Report outgoing calls that PhhIms ends for lack of media to Android (bytecode, needs SMALI_DIR
-#    with the baksmali/smali 2.5.2 jars and java), else the call screen hangs until a reboot.
+# 2. Bytecode fixes (needs SMALI_DIR with the baksmali/smali 2.5.2 jars and java, see
+#    tools/patch-phhims-dex.py): report outgoing calls that PhhIms ends for lack of media to Android
+#    (v0.3.3), and send the BYE of a local hangup over the main flow (v0.3.4).
 apk=$PHHIMS_APK
 changed=
 if python3 tools/strip-protected-broadcast.py "$apk" dist/tmp/PhhIms-stripped.apk; then

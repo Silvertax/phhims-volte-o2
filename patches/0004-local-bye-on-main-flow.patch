@@ -1,0 +1,75 @@
+diff --git a/app/src/main/java/me/phh/sip/SipRemoteDialogTermination.kt b/app/src/main/java/me/phh/sip/SipRemoteDialogTermination.kt
+index 6b2c85a..23922bb 100644
+--- a/app/src/main/java/me/phh/sip/SipRemoteDialogTermination.kt
++++ b/app/src/main/java/me/phh/sip/SipRemoteDialogTermination.kt
+@@ -4,12 +4,20 @@ import java.io.OutputStream
+ 
+ internal object SipRemoteDialogTermination {
+ 
++    /*
++     * A BYE is a request, so it goes over the main outbound flow (port_uc -> port_ps, TS 33.203),
++     * also in a dialog that the network opened. The flow an incoming INVITE arrived on ends at the
++     * P-CSCF's client port; at least one P-CSCF (VIVACOM, 284-03) drops requests there without any
++     * response, which left the other side in the call after a local hangup. The dialog writers are
++     * kept as parameters for the callers; the main flow is reopened if it went dormant.
++     */
++    @Suppress("UNUSED_PARAMETER")
+     fun localDialogRequestWriter(
+         incomingResponseWriter: OutputStream?,
+         registeredDialogWriter: OutputStream?,
+         fallbackWriter: () -> OutputStream,
+     ): OutputStream =
+-        incomingResponseWriter ?: registeredDialogWriter ?: fallbackWriter()
++        fallbackWriter()
+ 
+ 
+ 
+diff --git a/app/src/test/java/me/phh/sip/SipRemoteDialogTerminationTest.kt b/app/src/test/java/me/phh/sip/SipRemoteDialogTerminationTest.kt
+index 331da0e..4d55e67 100644
+--- a/app/src/test/java/me/phh/sip/SipRemoteDialogTerminationTest.kt
++++ b/app/src/test/java/me/phh/sip/SipRemoteDialogTerminationTest.kt
+@@ -7,39 +7,22 @@ import org.junit.Test
+ 
+ class SipRemoteDialogTerminationTest {
+     @Test
+-    fun `incoming dialog writer wins over dormant main flow`() {
++    fun `main flow is used even when the dialog arrived on an incoming flow`() {
+         val incomingWriter = ByteArrayOutputStream()
+         val registeredWriter = ByteArrayOutputStream()
+-        var fallbackCalled = false
++        val mainWriter = ByteArrayOutputStream()
+ 
+         val selected = SipRemoteDialogTermination.localDialogRequestWriter(
+             incomingResponseWriter = incomingWriter,
+             registeredDialogWriter = registeredWriter,
+-            fallbackWriter = {
+-                fallbackCalled = true
+-                ByteArrayOutputStream()
+-            },
++            fallbackWriter = { mainWriter },
+         )
+ 
+-        assertSame(incomingWriter, selected)
+-        check(!fallbackCalled)
++        assertSame(mainWriter, selected)
+     }
+ 
+     @Test
+-    fun `registered dialog writer wins when call has no stored writer`() {
+-        val registeredWriter = ByteArrayOutputStream()
+-
+-        val selected = SipRemoteDialogTermination.localDialogRequestWriter(
+-            incomingResponseWriter = null,
+-            registeredDialogWriter = registeredWriter,
+-            fallbackWriter = { ByteArrayOutputStream() },
+-        )
+-
+-        assertSame(registeredWriter, selected)
+-    }
+-
+-    @Test
+-    fun `main flow is used only without a dialog writer`() {
++    fun `main flow is used without a dialog writer`() {
+         val fallbackWriter = ByteArrayOutputStream()
+ 
+         val selected = SipRemoteDialogTermination.localDialogRequestWriter(
