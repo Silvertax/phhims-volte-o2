@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.4 (2026-11-19)
+
+- Fixed: when you hung up an incoming call first, the other phone could stay in the call. PhhIms sent its hang-up message on the connection the call had come in on, and some networks silently ignore requests there (seen on VIVACOM, Bulgaria). The hang-up now goes over the regular connection, like for outgoing calls, where it was always answered. Found in a tester's log; the module patches PhhIms.
+
 ## v0.3.3 (2026-11-13)
 
 - Fixed: a stuck call screen after an outgoing call that the network answered without sending audio, or that the other side ended before any audio arrived. PhhIms ended such a call but did not tell Android, so the screen stayed on "dialing", hanging up did nothing and only a reboot helped. The call now ends normally. Found in a tester's log (Android 16, ONDO); the cause is in PhhIms, the module patches it.
