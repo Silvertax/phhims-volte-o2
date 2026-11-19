@@ -56,7 +56,8 @@ last_fired=$(echo "$radio" | grep 'Alarm fired with me.phh.ims.ALARM_PERIODIC_RE
 failed=$(echo "$radio" | grep -c 'Outgoing call setup failed')
 log_since=$(echo "$radio" | grep -v '^-' | head -n 1 | cut -c7-11)
 
-calls=$(awk '/boot completed/ { c = 0 } /outgoing IMS call:/ { c++ } END { print c + 0 }' "$LOG" 2>/dev/null)
+# Counted from the start of this boot ("boot completed" is only logged a minute after boot)
+calls=$(awk '/boot attempt/ { c = 0 } /outgoing IMS call:/ { c++ } END { print c + 0 }' "$LOG" 2>/dev/null)
 dropped=$(awk '/boot attempt/ { c = 0 } /dropped stale package cache entry/ { c++ } END { print c + 0 }' "$LOG" 2>/dev/null)
 up=$(cut -d. -f1 /proc/uptime)
 uptime_s="$((up / 3600))h $((up % 3600 / 60))min"

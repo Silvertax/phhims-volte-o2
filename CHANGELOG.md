@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.5 (2026-11-19)
+
+- Status button: in the first minute after a reboot it showed the IMS state and call count from before the reboot, and could report "PROBLEM: IMS is not registered" although IMS was fine. It now only shows the current boot.
+
 ## v0.3.4 (2026-11-19)
 
 - Fixed: when you hung up an incoming call first, the other phone could stay in the call. PhhIms sent its hang-up message on the connection the call had come in on, and some networks silently ignore requests there (seen on VIVACOM, Bulgaria). The hang-up now goes over the regular connection, like for outgoing calls, where it was always answered. Found in a tester's log; the module patches PhhIms.
