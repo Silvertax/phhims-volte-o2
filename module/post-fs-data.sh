@@ -5,6 +5,10 @@ LOG=/data/adb/phhims-volte.log
 CNT=/data/adb/phhims-volte.bootcount
 log() { echo "$(date '+%F %T') $*" >> "$LOG"; }
 
+# The IMS state of the previous boot must not show up in the status button: service.sh only starts
+# tracking a minute after boot, until then action.sh reads the radio log of this boot (v0.3.5).
+rm -f /data/adb/phhims-volte.ims
+
 n=$(cat "$CNT" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$CNT"
