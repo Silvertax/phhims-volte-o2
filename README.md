@@ -69,7 +69,7 @@ The report is also saved to `/sdcard/Download/phhims-volte-status.txt`. It conta
 
 ## Known issues
 
-- **Speakerphone button did nothing, fixed in v0.3.6** (reported on VIVACOM, o2 and by another user): the call stayed on the earpiece. A tester's audio dump showed the cause, see [Changes in v0.3.6](#changes-in-v036-2026-11-20). Not yet confirmed on a phone.
+- **Speakerphone button did nothing, fixed in v0.3.6** (reported on VIVACOM, o2 and by another user): the call stayed on the earpiece. A tester's audio dump showed the cause, see [Changes in v0.3.6](#changes-in-v036-2026-11-20). Confirmed by that tester with a test build; switching takes about a second, as Android reroutes the running call audio.
 - **Other phone stayed in the call, fixed in v0.3.4** (a tester on VIVACOM, Bulgaria): after hanging up an incoming call first, the caller's phone stayed in the call. The tester's log showed the cause, see [Changes in v0.3.4](#changes-in-v034-2026-11-19). Not yet confirmed on the tester's phone.
 - **Stuck call screen, fixed in v0.3.3** (one tester, Android 16, ONDO): after an outgoing call, the call screen stayed on "dialing" and could not be ended; only a reboot helped. The tester's log showed the cause, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). Not yet confirmed on the tester's phone. If it still happens, save a radio log (see Troubleshooting) **before** rebooting.
 - **Outgoing calls without audio** (same tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet.
