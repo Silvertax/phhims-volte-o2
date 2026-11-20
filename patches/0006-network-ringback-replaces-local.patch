@@ -1,0 +1,98 @@
+diff --git a/app/src/main/java/me/phh/ims/PhhMmTelFeature.kt b/app/src/main/java/me/phh/ims/PhhMmTelFeature.kt
+index a97923d..87ccf76 100644
+--- a/app/src/main/java/me/phh/ims/PhhMmTelFeature.kt
++++ b/app/src/main/java/me/phh/ims/PhhMmTelFeature.kt
+@@ -819,8 +819,14 @@ class PhhMmTelFeature(
+                 extras["call-id"]?.let { outgoingCallSipCallId = it }
+                 session.mState = ImsCallSessionImplBase.State.ESTABLISHING
+                 val callProfile = makeVoiceCallProfile()
++                // INACTIVE makes Telephony play its own ringback tone; SEND_RECEIVE when the
++                // network plays one as early media (SipHandler sets "local-ringback" to "false").
+                 callProfile.mMediaProfile.mAudioDirection =
+-                    android.telephony.ims.ImsStreamMediaProfile.DIRECTION_INACTIVE
++                    if (extras["local-ringback"] == "false") {
++                        android.telephony.ims.ImsStreamMediaProfile.DIRECTION_SEND_RECEIVE
++                    } else {
++                        android.telephony.ims.ImsStreamMediaProfile.DIRECTION_INACTIVE
++                    }
+                 session.currentCallProfile = callProfile
+                 session.mListener.callSessionProgressing(callProfile.mMediaProfile)
+                 outgoingCallProgressReported = true
+diff --git a/app/src/main/java/me/phh/sip/SipHandler.kt b/app/src/main/java/me/phh/sip/SipHandler.kt
+index 3ff2405..193061c 100644
+--- a/app/src/main/java/me/phh/sip/SipHandler.kt
++++ b/app/src/main/java/me/phh/sip/SipHandler.kt
+@@ -607,6 +607,11 @@ private val smsHandler = SipSmsHandler(
+         null
+     var onOutgoingCallProgressing: ((handle: Object, extras: Map<String, String>) -> Unit)? =
+         null
++
++    // Call-ID of the outgoing call whose early media already carried speech (the network plays
++    // its own ringback tone). Call-IDs are unique, so it needs no reset.
++    @Volatile
++    private var earlySpeechCallId: String? = null
+     var onIncomingCallConnected: ((handle: Object, extras: Map<String, String>) -> Unit)? =
+         null
+     var onCancelledCall: ((handle: Object, from: String, extras: Map<String, String>) -> Unit)? =
+@@ -5808,7 +5813,12 @@ fun onWfcDisabled(reason: String) {
+             logTag = TAG,
+             response = response,
+         )?.let { progress ->
+-            onOutgoingCallProgressing?.invoke(Object(), progress.extras)
++            onOutgoingCallProgressing?.let { callback ->
++                val extras = progressExtrasForEarlySpeech(progress.extras)
++                callback(Object(), extras)
++                // The first speech frame may have arrived while this 180 was being reported.
++                recheckEarlySpeech(callback, extras)
++            }
+         }
+ 
+         if(response.statusCode >= 400) {
+@@ -6687,6 +6697,39 @@ fun onWfcDisabled(reason: String) {
+     }
+ 
+ 
++    private fun noLocalRingbackExtras(callId: String): Map<String, String> =
++        mapOf("call-id" to callId, "early-media" to "true", "local-ringback" to "false")
++
++    // VIVACOM sends its ringback tone as early media after the 183. PhhIms plays it, and the 180
++    // also asks Telephony for its own tone, so both played at once. The first early frame with
++    // speech (AMR FT 0-7, not SID or NO_DATA) reports the call as progressing without local
++    // ringback; networks without early media (o2, ONDO) keep the local tone.
++    private fun maybeReportEarlySpeech(call: Call, ft: Int) {
++        if (!call.outgoing || callStarted.get() || ft !in 0..7) return
++        val callId = call.callHeaders["call-id"]?.getOrNull(0) ?: return
++        if (callId == earlySpeechCallId) return
++        earlySpeechCallId = callId
++        Rlog.d(TAG, "Outgoing early media carries audio; network ringback replaces the local tone callId=$callId")
++        onOutgoingCallProgressing?.invoke(Object(), noLocalRingbackExtras(callId))
++    }
++
++    private fun progressExtrasForEarlySpeech(extras: Map<String, String>): Map<String, String> =
++        if (extras["call-id"] != null && extras["call-id"] == earlySpeechCallId) {
++            extras + ("local-ringback" to "false")
++        } else {
++            extras
++        }
++
++    private fun recheckEarlySpeech(
++        callback: (handle: Object, extras: Map<String, String>) -> Unit,
++        sent: Map<String, String>,
++    ) {
++        val callId = sent["call-id"] ?: return
++        if (sent["local-ringback"] == "true" && callId == earlySpeechCallId) {
++            callback(Object(), noLocalRingbackExtras(callId))
++        }
++    }
++
+     private fun handleReceivedDownlinkRtpPacket(
+         receiveCall: Call,
+         dgram: DatagramPacket,
+@@ -6712,6 +6755,7 @@ fun onWfcDisabled(reason: String) {
+         val pt = SipRtpPacketParser.payloadType(dgramBuf)
+         val amrFrame = SipAmrRtpPayload.storageFrameFromBandwidthEfficientRtp(audioCodec, dgramBuf, dgram.length)
+         val ftForLog = amrFrame?.ft ?: 15
++        maybeReportEarlySpeech(receiveCall, ftForLog)
+ 
+         SipRtpPacketLogger.logReceivedPacket(
+             logTag = TAG,

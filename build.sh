@@ -37,8 +37,9 @@ mkdir -p "$OUT/ovl/product/overlay" "$OUT/ovl/system/priv-app/PhhIms"
 #    alarm, because this build does not run as the system UID.
 # 2. Bytecode fixes (needs SMALI_DIR with the baksmali/smali 2.5.2 jars and java, see
 #    tools/patch-phhims-dex.py): report outgoing calls that PhhIms ends for lack of media to Android
-#    (v0.3.3), send the BYE of a local hangup over the main flow (v0.3.4), and leave the audio mode
-#    to Telecom so the speakerphone button works (v0.3.6).
+#    (v0.3.3), send the BYE of a local hangup over the main flow (v0.3.4), leave the audio mode
+#    to Telecom so the speakerphone button works (v0.3.6), and let a network ringback tone (early
+#    media) replace the phone's own one instead of playing both (v0.3.8).
 apk=$PHHIMS_APK
 changed=
 if python3 tools/strip-protected-broadcast.py "$apk" dist/tmp/PhhIms-stripped.apk; then
