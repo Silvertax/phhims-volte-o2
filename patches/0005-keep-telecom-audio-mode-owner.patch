@@ -1,0 +1,19 @@
+diff --git a/app/src/main/java/me/phh/sip/SipAudioRecordStarter.kt b/app/src/main/java/me/phh/sip/SipAudioRecordStarter.kt
+index 2ddb23d..7cd4db4 100644
+--- a/app/src/main/java/me/phh/sip/SipAudioRecordStarter.kt
++++ b/app/src/main/java/me/phh/sip/SipAudioRecordStarter.kt
+@@ -14,7 +14,13 @@ object SipAudioRecordStarter {
+         encoder: MediaCodec,
+     ): Int? {
+         val previousAudioMode = audioManager.mode
+-        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
++        // Telecom usually has the call in MODE_IN_COMMUNICATION already. Setting it again would
++        // make PhhIms the audio mode owner, and AudioService then ignores Telecom's
++        // setCommunicationDevice(), e.g. the speakerphone button (unless PhhIms runs as the
++        // system UID, like Telecom).
++        if (previousAudioMode != AudioManager.MODE_IN_COMMUNICATION) {
++            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
++        }
+         try {
+             audioRecord.startRecording()
+         } catch (t: Throwable) {
