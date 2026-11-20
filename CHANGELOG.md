@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.8 (2026-11-20)
+
+- Fixed: two ringing tones at once while an outgoing call rang, on networks that send their own ringback tone (seen on VIVACOM, Bulgaria). The phone played its own tone on top of the network's. Now the network's tone replaces the phone's own as soon as it arrives; networks without their own tone (o2, ONDO) keep the phone's tone as before. Found in a tester's log; the module patches PhhIms.
+
 ## v0.3.7 (2026-11-20)
 
 - Module list: author and description no longer call this an o2 edit; it runs with several carriers and ROMs now. No functional change.

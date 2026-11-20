@@ -1,13 +1,13 @@
 # PhhIms VoLTE for the Galaxy S20 FE (r8q)
 
-KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. It started as an o2 Germany (Telefónica) version of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)** and now runs with several carriers and ROMs; six faults in the setup and in PhhIms are fixed along the way (see [Fixed faults](#fixed-faults)). **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
+KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. It started as an o2 Germany (Telefónica) version of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)** and now runs with several carriers and ROMs; seven faults in the setup and in PhhIms are fixed along the way (see [Fixed faults](#fixed-faults)). **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
 
 ## Credits
 
 - **[buddi0812](https://github.com/buddi0812)**: original module ([r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims) v0.1, made for Airtel India on PixelOS 17): the PhhIms patch for r8q, the KernelSU module and the overlays, which this project builds on. His README is kept as [ORIGINAL-README.md](ORIGINAL-README.md).
 - **PhhIms**: Pierre-Hugues Husson ([phhusson/ims](https://github.com/phhusson/ims)) and the [krazey/ims](https://github.com/krazey/ims) contributors
 - **Maintainer**: [Silvertax](https://github.com/Silvertax): o2 adaptation, the fixes since v0.2, status button, builds
-- **Testers** on ONDO (Mongolia) and VIVACOM (Bulgaria): their logs found the faults fixed in v0.3.3, v0.3.4 and v0.3.6
+- **Testers** on ONDO (Mongolia) and VIVACOM (Bulgaria): their logs found the faults fixed in v0.3.3, v0.3.4, v0.3.6 and v0.3.8
 
 ## Status
 
@@ -15,13 +15,13 @@ Experimental. Tested so far:
 
 - **o2 Germany (262-07):** Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud, Android 17), KernelSU v3.3.1 in the kernel, SELinux enforcing, with a dedicated IMS APN. In daily use since v0.2.2-o2.
 - **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), KernelSU 3.3.1 with the Shadow kernel, v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3.
-- **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.6. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. Calls to his second phone used normal quality instead of HD, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4.
+- **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.7. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. Calls with his phone on A1 use normal quality instead of HD, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4, the two ringback tones on outgoing calls in v0.3.8.
 
 The details below refer to the o2 setup.
 
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, speakerphone (from v0.3.6), re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
-- **Fixed:** six faults so far, see [Fixed faults](#fixed-faults).
+- **Fixed:** seven faults so far, see [Fixed faults](#fixed-faults).
 - **How far this is tested:** with v0.2.2-o2, incoming and outgoing calls still went over VoLTE 13 hours after boot, and the registration was refreshed on schedule. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
 - **Magisk:** not tested yet; the o2 and ONDO setups above use KernelSU. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
@@ -70,7 +70,7 @@ Before v0.3.5 it could show the state from before a reboot during the first minu
 
 ## Known issues
 
-- **No HD voice on some calls:** PhhIms offers HD voice (AMR-WB) first, but if the other phone or the network answers with normal quality (AMR-NB), the call stays in normal quality and the dialer shows no HD icon. Seen on VIVACOM for calls to the tester's second phone, while calls from that phone used HD. Not a fault of the module.
+- **No HD voice on some calls:** PhhIms offers HD voice (AMR-WB) first, but if the network answers with normal quality (AMR-NB), the call stays in normal quality and the dialer shows no HD icon. Seen on VIVACOM for calls with the tester's phone on A1: VIVACOM answers outgoing calls with AMR-NB, and on incoming calls it converts, so the S20 FE shows HD while the A1 phone does not. The A1 phone gets HD with other phones, and the same module gets HD on outgoing calls with o2 and ONDO, which points to the connection between the two networks rather than the module.
 - **Outgoing call without audio** (ONDO tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet. Since v0.3.3 such a call ends normally instead of hanging.
 - **Speakerphone switching takes about a second** after tapping the button: Android moves the running call audio to the other device. The module is not involved in that.
 - The fix for the late, silent outgoing calls is a workaround in the module (see [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10), fix 2); the proper fix belongs in the ROM's audio HAL.
@@ -87,6 +87,7 @@ These probably affect anyone running PhhIms on this phone without the system UID
 | 4 | Stuck call screen after an outgoing call that got no audio | v0.3.3 | not seen again (ONDO) |
 | 5 | Other phone stayed in the call after hanging up an incoming call first | v0.3.4 | not yet (VIVACOM) |
 | 6 | Speakerphone button did nothing | v0.3.6 | yes (VIVACOM) |
+| 7 | Two ringback tones at once on outgoing calls (the network's and the phone's own) | v0.3.8 | not yet (VIVACOM) |
 
 ## Testers wanted
 
@@ -115,6 +116,12 @@ The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE 
   su -c "logcat -d -b radio | sed -E 's/[0-9]{7,}/NUM/g' > /sdcard/Download/volte-radio.txt"
   ```
   Look it over before posting it publicly.
+
+## Changes in v0.3.8 (2026-11-20)
+
+**Two ringback tones on outgoing calls.** A tester on VIVACOM heard two ringing tones at once while his outgoing calls rang. His radio log shows why: after the `183 Session Progress`, VIVACOM sends its own ringback tone as early media (RTP with speech frames before the call is answered), and PhhIms plays it. On every `180 Ringing` without SDP, PhhIms also reports the call as progressing with the audio direction `INACTIVE`, which makes Telephony play the phone's own ringback tone (`ImsPhoneCall.isLocalTone`, `maybeChangeRingbackState: start ringback` in the log). o2 and ONDO send no early media, so only the phone's own tone plays there.
+
+- Fix: the first early-media frame of an outgoing call that carries speech (AMR frame types 0 to 7, not comfort noise or empty frames) reports the call as progressing with the direction `SEND_RECEIVE`, and later `180`s of that call do the same. Telephony then stops its own tone or does not start it. VIVACOM sent comfort noise until the `180` and the tone only afterwards, so the phone's own tone can still sound for about a second before the network's takes over. Without early media nothing changes. [`patches/0006-network-ringback-replaces-local.patch`](patches/0006-network-ringback-replaces-local.patch) is the source change; `build.sh` applies it to the bytecode like the earlier fixes. The patch tool now also edits PhhIms' second dex file, where `PhhMmTelFeature` lives.
 
 ## Changes in v0.3.6 (2026-11-20)
 
@@ -163,11 +170,11 @@ Checked on the test device on 2026-11-11 with the cache entry removed by hand: A
 - **Power management:** PhhIms is on the system power-save allowlist (`allow-in-power-save`), so Doze and App Standby don't restrict it.
 - **Diagnostics:** the log also shows the IMS feature state, the SIM network code, the VoLTE carrier-config value and the power-save state. The package check now matches `me.phh.ims` exactly instead of also matching the overlays.
 - **Build script:** `build.sh` builds the overlays and the module zip.
-- **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with its manifest changed (see v0.2-o2 above) and, from v0.3.3, two cancellation reports extended (see v0.3.3), from v0.3.4 the local BYE sent over the main flow (see v0.3.4) and from v0.3.6 the audio mode left to Telecom (see v0.3.6).
+- **Unchanged:** the patch, `post-fs-data.sh`, `uninstall.sh` and the `android`/`phone` overlays. The PhhIms APK is buddi0812's v0.1 build with its manifest changed (see v0.2-o2 above) and, from v0.3.3, two cancellation reports extended (see v0.3.3), from v0.3.4 the local BYE sent over the main flow (see v0.3.4), from v0.3.6 the audio mode left to Telecom (see v0.3.6) and from v0.3.8 the network's ringback tone replacing the phone's own (see v0.3.8).
 
 ## Building
 
-**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch), [`patches/0002-drop-protected-broadcast.patch`](patches/0002-drop-protected-broadcast.patch), [`patches/0003-report-no-media-outgoing-end.patch`](patches/0003-report-no-media-outgoing-end.patch), [`patches/0004-local-bye-on-main-flow.patch`](patches/0004-local-bye-on-main-flow.patch) and [`patches/0005-keep-telecom-audio-mode-owner.patch`](patches/0005-keep-telecom-audio-mode-owner.patch):
+**PhhIms APK** (as described by buddi0812): upstream [krazey/ims](https://github.com/krazey/ims) at commit `a3fec01ebc4f51c39026565c4a451fef454637fa` plus [`patches/0001-phhims-for-r8q-pixelos.patch`](patches/0001-phhims-for-r8q-pixelos.patch), [`patches/0002-drop-protected-broadcast.patch`](patches/0002-drop-protected-broadcast.patch), [`patches/0003-report-no-media-outgoing-end.patch`](patches/0003-report-no-media-outgoing-end.patch), [`patches/0004-local-bye-on-main-flow.patch`](patches/0004-local-bye-on-main-flow.patch), [`patches/0005-keep-telecom-audio-mode-owner.patch`](patches/0005-keep-telecom-audio-mode-owner.patch) and [`patches/0006-network-ringback-replaces-local.patch`](patches/0006-network-ringback-replaces-local.patch):
 
 ```sh
 git clone https://github.com/krazey/ims && cd ims
@@ -177,6 +184,7 @@ git apply /path/to/0002-drop-protected-broadcast.patch
 git apply /path/to/0003-report-no-media-outgoing-end.patch
 git apply /path/to/0004-local-bye-on-main-flow.patch
 git apply /path/to/0005-keep-telecom-audio-mode-owner.patch
+git apply /path/to/0006-network-ringback-replaces-local.patch
 # edit app/build.gradle: set the SDK path in the bootstrapClasspath line (android-33 platform jar)
 ./gradlew assembleDebug      # Gradle 8.5, AGP 8.2, Kotlin 1.8.10, NDK 25.1.8937393
 ```
@@ -190,7 +198,7 @@ KEYSTORE=my-key.jks SMALI_DIR=path/to/smali-jars \
 PHHIMS_APK=path/to/PhhIms.apk ./build.sh
 ```
 
-The zip ends up in `dist/`. The script needs `python3` and `java`, and in `SMALI_DIR` the baksmali/smali 2.5.2 jars with their dependencies (the list with checksums is in the workflow). It removes the `<protected-broadcast>` declaration from `PHHIMS_APK` and applies the bytecode fixes of v0.3.3 to v0.3.6 that are not there yet, and re-signs the APK with `KEYSTORE` if it changed anything; an APK built with patches 0002 to 0005 is packed as it is. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
+The zip ends up in `dist/`. The script needs `python3` and `java`, and in `SMALI_DIR` the baksmali/smali 2.5.2 jars with their dependencies (the list with checksums is in the workflow). It removes the `<protected-broadcast>` declaration from `PHHIMS_APK` and applies the bytecode fixes of v0.3.3 to v0.3.8 that are not there yet, and re-signs the APK with `KEYSTORE` if it changed anything; an APK built with patches 0002 to 0006 is packed as it is. `aapt2 link` needs `--keep-raw-values` (the script sets it): without it, `mnc="07"` is stored as the integer 7, CarrierConfig reads `"7"` and the entry never matches the SIM.
 
 **Releases:** set `version` and `versionCode` in `module/module.prop`, add the changes to `CHANGELOG.md`, merge, then publish a GitHub release whose tag equals `version`. The workflow in `.github/workflows/build.yml` builds the zip, attaches it to the release and updates `update.json`. It signs the overlays with the repository secrets `KEYSTORE_BASE64` and `KEYSTORE_PASSWORD` if they are set, otherwise with a key made for that build.
 
