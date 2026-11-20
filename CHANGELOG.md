@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.7 (2026-11-20)
+
+- Module list: author and description no longer call this an o2 edit; it runs with several carriers and ROMs now. No functional change.
+
 ## v0.3.6 (2026-11-20)
 
 - Fixed: the speakerphone button did nothing during a call. PhhIms took over the call's audio mode, and Android then ignored the speaker request from the phone app. PhhIms now leaves the audio mode to the phone app when it has already set it. Found in a tester's audio dump; the module patches PhhIms.

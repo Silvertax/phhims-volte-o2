@@ -1,10 +1,10 @@
 # PhhIms VoLTE for the Galaxy S20 FE (r8q)
 
-KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. This is a fork of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)**, adapted and tested with **o2 Germany (Telefónica)**. **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
+KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. It started as an o2 Germany (Telefónica) version of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)** and now runs with several carriers and ROMs; six faults in the setup and in PhhIms are fixed along the way (see [Status](#status)). **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
 
 ## Credits
 
-- **[buddi0812](https://github.com/buddi0812)**: original module ([r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims) v0.1, made for Airtel India on PixelOS 17): the PhhIms patch for r8q, the KernelSU module and the overlays. Nearly everything here is his work; his README is kept as [ORIGINAL-README.md](ORIGINAL-README.md).
+- **[buddi0812](https://github.com/buddi0812)**: original module ([r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims) v0.1, made for Airtel India on PixelOS 17): the PhhIms patch for r8q, the KernelSU module and the overlays, which this project builds on. His README is kept as [ORIGINAL-README.md](ORIGINAL-README.md).
 - **PhhIms**: Pierre-Hugues Husson ([phhusson/ims](https://github.com/phhusson/ims)) and the [krazey/ims](https://github.com/krazey/ims) contributors
 - **o2 adaptation**: [Silvertax](https://github.com/Silvertax)
 
