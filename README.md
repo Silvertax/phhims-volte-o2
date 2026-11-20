@@ -1,26 +1,27 @@
 # PhhIms VoLTE for the Galaxy S20 FE (r8q)
 
-KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. It started as an o2 Germany (Telefónica) version of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)** and now runs with several carriers and ROMs; six faults in the setup and in PhhIms are fixed along the way (see [Status](#status)). **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
+KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. It started as an o2 Germany (Telefónica) version of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)** and now runs with several carriers and ROMs; six faults in the setup and in PhhIms are fixed along the way (see [Fixed faults](#fixed-faults)). **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
 
 ## Credits
 
 - **[buddi0812](https://github.com/buddi0812)**: original module ([r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims) v0.1, made for Airtel India on PixelOS 17): the PhhIms patch for r8q, the KernelSU module and the overlays, which this project builds on. His README is kept as [ORIGINAL-README.md](ORIGINAL-README.md).
 - **PhhIms**: Pierre-Hugues Husson ([phhusson/ims](https://github.com/phhusson/ims)) and the [krazey/ims](https://github.com/krazey/ims) contributors
-- **o2 adaptation**: [Silvertax](https://github.com/Silvertax)
+- **Maintainer**: [Silvertax](https://github.com/Silvertax): o2 adaptation, the fixes since v0.2, status button, builds
+- **Testers** on ONDO (Mongolia) and VIVACOM (Bulgaria): their logs found the faults fixed in v0.3.3, v0.3.4 and v0.3.6
 
 ## Status
 
 Experimental. Tested so far:
 
 - **o2 Germany (262-07):** Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud, Android 17), KernelSU v3.3.1 in the kernel, SELinux enforcing, with a dedicated IMS APN. In daily use since v0.2.2-o2.
-- **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), KernelSU 3.3.1 with the Shadow kernel, v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3, see [Known issues](#known-issues).
-- **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3. IMS registers and calls work in both directions over VoLTE. Calls to his second phone used normal quality instead of HD, chosen by that phone or the network. Hanging up an incoming call first left the caller in the call; fixed in v0.3.4, see [Known issues](#known-issues).
+- **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), KernelSU 3.3.1 with the Shadow kernel, v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3.
+- **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.6. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. Calls to his second phone used normal quality instead of HD, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4.
 
 The details below refer to the o2 setup.
 
-- **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, re-registration after reboot
+- **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, speakerphone (from v0.3.6), re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
-- **Fixed:** with v0.1 VoLTE stopped working about an hour after each registration and calls fell back to 2G (mobile data pauses during such a call), and outgoing VoLTE calls connected 8 to 12 seconds late with a dead microphone. The audio fix works from v0.2-o2, the registration fix from v0.2.2-o2. See [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10). From v0.3.3 an outgoing call that gets no audio no longer leaves a stuck call screen, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). From v0.3.4 hanging up an incoming call first also ends it for the other side on networks that were ignoring that hang-up, see [Changes in v0.3.4](#changes-in-v034-2026-11-19). From v0.3.6 the speakerphone button works, see [Changes in v0.3.6](#changes-in-v036-2026-11-20).
+- **Fixed:** six faults so far, see [Fixed faults](#fixed-faults).
 - **How far this is tested:** with v0.2.2-o2, incoming and outgoing calls still went over VoLTE 13 hours after boot, and the registration was refreshed on schedule. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
 - **Magisk:** not tested yet; the o2 and ONDO setups above use KernelSU. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
@@ -50,7 +51,7 @@ Seen so far with o2 Germany (the preset APN `internet` also had the type `ims`) 
 3. Two minutes after boot, tap the module's **Action** button in KernelSU / Magisk (see [Status button](#status-button)). It should end with `OK: VoLTE is ready.`
 4. Turn on VoLTE under Settings → Network & internet → SIMs → your SIM, then test a call and an SMS.
 
-Later versions can be installed from the module list in KernelSU / Magisk: the module carries an update link (`updateJson`), so the manager offers an update when a new release is out. This works from v0.2.1-o2 on.
+Later versions can be installed from the module list in KernelSU / Magisk: the module carries an update link (`updateJson`), so the manager offers an update when a new release is out. This works from v0.2.1-o2 on. If no update shows up, check that the manager's automatic update check is on in its settings and reload the module list; a module that waits for a reboot after an install is not checked. You can always install the zip from [Releases](../../releases/latest) by hand.
 
 To uninstall, remove the module in KernelSU / Magisk and reboot.
 
@@ -65,19 +66,31 @@ From v0.3 the module has an **Action** button in the module list of KernelSU and
 - outgoing VoLTE calls since boot and failed call setups in the radio log
 - a verdict: `OK`, `WAIT`, `CHECK` or `PROBLEM`
 
-The report is also saved to `/sdcard/Download/phhims-volte-status.txt`. It contains no phone numbers, so a screenshot or the file can be posted as it is.
+Before v0.3.5 it could show the state from before a reboot during the first minute after boot. The report is also saved to `/sdcard/Download/phhims-volte-status.txt`. It contains no phone numbers, so a screenshot or the file can be posted as it is.
 
 ## Known issues
 
-- **Speakerphone button did nothing, fixed in v0.3.6** (reported on VIVACOM, o2 and by another user): the call stayed on the earpiece. A tester's audio dump showed the cause, see [Changes in v0.3.6](#changes-in-v036-2026-11-20). Confirmed by that tester with a test build; switching takes about a second, as Android reroutes the running call audio.
-- **Other phone stayed in the call, fixed in v0.3.4** (a tester on VIVACOM, Bulgaria): after hanging up an incoming call first, the caller's phone stayed in the call. The tester's log showed the cause, see [Changes in v0.3.4](#changes-in-v034-2026-11-19). Not yet confirmed on the tester's phone.
-- **Stuck call screen, fixed in v0.3.3** (one tester, Android 16, ONDO): after an outgoing call, the call screen stayed on "dialing" and could not be ended; only a reboot helped. The tester's log showed the cause, see [Changes in v0.3.3](#changes-in-v033-2026-11-13). Not yet confirmed on the tester's phone. If it still happens, save a radio log (see Troubleshooting) **before** rebooting.
-- **Outgoing calls without audio** (same tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet.
-- The fix for the late, silent outgoing calls is a workaround in the module (see v0.2-o2, fix 2); the proper fix belongs in the ROM's audio HAL.
+- **No HD voice on some calls:** PhhIms offers HD voice (AMR-WB) first, but if the other phone or the network answers with normal quality (AMR-NB), the call stays in normal quality and the dialer shows no HD icon. Seen on VIVACOM for calls to the tester's second phone, while calls from that phone used HD. Not a fault of the module.
+- **Outgoing call without audio** (ONDO tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet. Since v0.3.3 such a call ends normally instead of hanging.
+- **Speakerphone switching takes about a second** after tapping the button: Android moves the running call audio to the other device. The module is not involved in that.
+- The fix for the late, silent outgoing calls is a workaround in the module (see [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10), fix 2); the proper fix belongs in the ROM's audio HAL.
+
+## Fixed faults
+
+These probably affect anyone running PhhIms on this phone without the system UID. Details in the change notes below and in [CHANGELOG.md](CHANGELOG.md).
+
+| # | Fault | Fixed in | Confirmed |
+|---|---|---|---|
+| 1 | The IMS registration was never refreshed, calls fell back to 2G after an hour | v0.2-o2 | yes (o2) |
+| 2 | Fix 1 did not take effect: Android kept a cached manifest | v0.2.2-o2 | yes (o2) |
+| 3 | Outgoing calls connected 8 to 12 seconds late with a dead microphone (audio HAL workaround) | v0.2-o2 | yes (o2) |
+| 4 | Stuck call screen after an outgoing call that got no audio | v0.3.3 | not seen again (ONDO) |
+| 5 | Other phone stayed in the call after hanging up an incoming call first | v0.3.4 | not yet (VIVACOM) |
+| 6 | Speakerphone button did nothing | v0.3.6 | yes (VIVACOM) |
 
 ## Testers wanted
 
-The goal is VoLTE on the r8q with as many custom ROMs and carriers as possible. So far it runs on two setups (see [Status](#status)). Every report helps, whether it works or not:
+The goal is VoLTE on the r8q with as many custom ROMs and carriers as possible. So far it runs on three setups (see [Status](#status)). Every report helps, whether it works or not:
 
 - **Other carriers:** nothing in the fixes depends on the carrier, and the bundled PhhIms applies a persistent VoLTE carrier-config override for any SIM on its own (`ensureVolteCarrierConfig` in buddi0812's patch), so other carriers may well work already. A carrier that does not work yet can often be added once its log shows what it expects.
 - **Other ROMs:** any AOSP-based ROM on Android 17 or 16 (LineageOS, Lunaris, PixelOS, …). buddi0812's original module was made on PixelOS 17.
