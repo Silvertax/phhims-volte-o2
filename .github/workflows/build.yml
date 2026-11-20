@@ -29,14 +29,34 @@ jobs:
           echo "$PHHIMS_ZIP_SHA256  /tmp/base.zip" | sha256sum -c -
           unzip -q -j /tmp/base.zip ovl/system/priv-app/PhhIms/PhhIms.apk -d /tmp/apk
 
+      - name: Cache smali
+        uses: actions/cache@v4
+        with:
+          path: /tmp/smali
+          key: smali-2.5.2-r1
+
       - name: Fetch smali
         run: |
-          # baksmali/smali 2.5.2 and their dependencies, for the PhhIms bytecode patch (build.sh)
+          # baksmali/smali 2.5.2 and their dependencies, for the PhhIms bytecode patch (build.sh).
+          # Maven Central sometimes answers 429 (rate limit), so cached jars are reused and two
+          # mirrors are tried; every jar is checked against its checksum, wherever it came from.
           mkdir -p /tmp/smali && cd /tmp/smali
-          m=https://repo1.maven.org/maven2
+          mirrors="https://repo1.maven.org/maven2 https://maven-central.storage-download.googleapis.com/maven2 https://repo.maven.apache.org/maven2"
           while read -r sum path; do
-            curl -fsSL --retry 3 -o "${path##*/}" "$m/$path"
-            echo "$sum  ${path##*/}" | sha256sum -c -
+            f=${path##*/}
+            if [ -f "$f" ] && echo "$sum  $f" | sha256sum -c --quiet - 2>/dev/null; then
+              continue
+            fi
+            ok=
+            for m in $mirrors; do
+              if curl -fsSL --retry 3 --retry-delay 5 -o "$f" "$m/$path" &&
+                echo "$sum  $f" | sha256sum -c --quiet -; then
+                ok=1
+                break
+              fi
+              echo "::warning::$f not fetched from $m"
+            done
+            [ -n "$ok" ] || { echo "::error::could not fetch $path"; exit 1; }
           done <<'EOF'
           1ed236266d7dc4907aade0b19a34f77efac25342b63c8ace52e579039941b389 org/smali/baksmali/2.5.2/baksmali-2.5.2.jar
           136c5c4653d6531bd7b6f10f35f8691cb96432e727d30b4d5579826ee01e9419 org/smali/smali/2.5.2/smali-2.5.2.jar

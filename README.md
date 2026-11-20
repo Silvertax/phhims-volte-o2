@@ -15,7 +15,7 @@ Experimental. Tested so far:
 
 - **o2 Germany (262-07):** Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud, Android 17), KernelSU v3.3.1 in the kernel, SELinux enforcing, with a dedicated IMS APN. In daily use since v0.2.2-o2.
 - **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), KernelSU 3.3.1 with the Shadow kernel, v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3.
-- **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.7. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. Calls with his phone on A1 use normal quality instead of HD, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4, the two ringback tones on outgoing calls in v0.3.8.
+- **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.8. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. Calls with his phone on A1 use normal quality instead of HD, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4; with v0.3.8 outgoing calls ring with one tone instead of two (confirmed).
 
 The details below refer to the o2 setup.
 
@@ -87,7 +87,7 @@ These probably affect anyone running PhhIms on this phone without the system UID
 | 4 | Stuck call screen after an outgoing call that got no audio | v0.3.3 | not seen again (ONDO) |
 | 5 | Other phone stayed in the call after hanging up an incoming call first | v0.3.4 | not yet (VIVACOM) |
 | 6 | Speakerphone button did nothing | v0.3.6 | yes (VIVACOM) |
-| 7 | Two ringback tones at once on outgoing calls (the network's and the phone's own) | v0.3.8 | not yet (VIVACOM) |
+| 7 | Two ringback tones at once on outgoing calls (the network's and the phone's own) | v0.3.8 | yes (VIVACOM) |
 
 ## Testers wanted
 
