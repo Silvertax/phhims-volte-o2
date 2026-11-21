@@ -134,6 +134,7 @@ Uptime:     $uptime_s
 VoLTE calls since boot (outgoing): ${calls:-0}
 Failed call setups in radio log since ${log_since:-?}: $failed
 Cache entries renewed at boot: $dropped
+HD test:    wb_offer=$(getprop persist.sys.phhims.wb_offer) (empty or 0 = normal offer)
 
 $verdict
 EOF

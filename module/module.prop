@@ -1,6 +1,6 @@
 id=phhims_volte
 name=PhhIms VoLTE (r8q)
-version=v0.3.8
+version=v0.3.8-hdtest1
 versionCode=17
 updateJson=https://raw.githubusercontent.com/Silvertax/phhims-volte-o2/main/update.json
 author=Silvertax, based on buddi0812's r8q-volte-phhims

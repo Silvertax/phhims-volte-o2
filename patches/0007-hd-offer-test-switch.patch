@@ -1,0 +1,56 @@
+diff --git a/app/src/main/java/me/phh/sip/SipOutgoingInviteSdp.kt b/app/src/main/java/me/phh/sip/SipOutgoingInviteSdp.kt
+index 4f87013..cbca319 100644
+--- a/app/src/main/java/me/phh/sip/SipOutgoingInviteSdp.kt
++++ b/app/src/main/java/me/phh/sip/SipOutgoingInviteSdp.kt
+@@ -71,16 +71,28 @@ internal object SipOutgoingInviteSdp {
+         val dtmfNbTrack = 100
+         val dtmfWbTrack = 101
+         val offerAmrWb = amrWbMediaCodecAvailable
+-        val allTracks = if (offerAmrWb) {
++        var allTracks = if (offerAmrWb) {
+             listOf(amrWbTrack, amrNbTrack, dtmfWbTrack, dtmfNbTrack)
+         } else {
+             listOf(amrNbTrack, dtmfNbTrack)
+         }
+-        val offerBandwidthAs = if (offerAmrWb) {
++        var offerBandwidthAs = if (offerAmrWb) {
+             SipAudioCodecNegotiator.sdpBandwidthAsKbps(SipAudioCodecs.AMR_WB)
+         } else {
+             SipAudioCodecNegotiator.sdpBandwidthAsKbps(SipAudioCodecs.AMR_NB)
+         }
++        // HD test switch: VIVACOM answers this offer with AMR-NB although AMR-WB comes first, while
++        // the same SIM gets HD on a stock phone. Bitmask, read at every outgoing call, 0 = unchanged:
++        // 1 = AMR-WB only, 2 = b=AS:49 (what stock phones send for AMR-WB), 3 = both.
++        if (offerAmrWb) {
++            val wbOffer = android.os.SystemProperties.getInt("persist.sys.phhims.wb_offer", 0)
++            if (wbOffer and 1 != 0) {
++                allTracks = listOf(amrWbTrack, dtmfWbTrack)
++            }
++            if (wbOffer and 2 != 0) {
++                offerBandwidthAs = 49
++            }
++        }
+         Rlog.d(
+             logTag,
+             "Outgoing INVITE codec offer: offerAmrWb=$offerAmrWb " +
+@@ -138,12 +150,14 @@ internal object SipOutgoingInviteSdp {
+                 "a=fmtp:$dtmfWbTrack 0-15",
+             )
+         }
+-        sdpLines += listOf(
+-            "a=rtpmap:$amrNbTrack AMR/8000/1",
+-            "a=fmtp:$amrNbTrack mode-change-capability=2;octet-align=0;max-red=0",
+-            "a=rtpmap:$dtmfNbTrack telephone-event/8000",
+-            "a=fmtp:$dtmfNbTrack 0-15",
+-        )
++        if (allTracks.contains(amrNbTrack)) {
++            sdpLines += listOf(
++                "a=rtpmap:$amrNbTrack AMR/8000/1",
++                "a=fmtp:$amrNbTrack mode-change-capability=2;octet-align=0;max-red=0",
++                "a=rtpmap:$dtmfNbTrack telephone-event/8000",
++                "a=fmtp:$dtmfNbTrack 0-15",
++            )
++        }
+         if (preconditionEnabled) {
+             sdpLines += listOf(
+                 "a=curr:qos local none",

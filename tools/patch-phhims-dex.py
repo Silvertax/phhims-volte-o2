@@ -477,6 +477,115 @@ def ringback_direction(body, signature):
     return body.replace(DIRECTION_OLD, DIRECTION_NEW)
 
 
+# HD test switch (test builds after v0.3.8): VIVACOM answers PhhIms' outgoing offer with AMR-NB
+# although it lists AMR-WB first, while the same SIM gets HD on a stock phone. To find out what
+# VIVACOM objects to without a new build per guess, persist.sys.phhims.wb_offer changes the offer
+# at runtime (read at every outgoing call, bitmask, 0 or unset = unchanged):
+#   1 = offer AMR-WB only (AMR-NB and telephone-event/8000 are left out)
+#   2 = b=AS:49 instead of 88 (49 kbps is what stock phones send for AMR-WB)
+#   3 = both
+# Source equivalent: patches/0007-hd-offer-test-switch.patch.
+WB_OFFER_OLD = """    :goto_56
+    move v14, v0
+"""
+
+WB_OFFER_NEW = """    :goto_56
+    move v14, v0
+
+    if-eqz v12, :phh_wb_offer_done
+
+    const-string v0, "persist.sys.phhims.wb_offer"
+
+    const/4 v1, 0x0
+
+    invoke-static {v0, v1}, Landroid/os/SystemProperties;->getInt(Ljava/lang/String;I)I
+
+    move-result v0
+
+    and-int/lit8 v1, v0, 0x1
+
+    if-eqz v1, :phh_wb_offer_as
+
+    const/4 v1, 0x2
+
+    new-array v1, v1, [Ljava/lang/Integer;
+
+    invoke-static {v9}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+
+    move-result-object v2
+
+    const/4 v3, 0x0
+
+    aput-object v2, v1, v3
+
+    invoke-static {v11}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+
+    move-result-object v2
+
+    const/4 v3, 0x1
+
+    aput-object v2, v1, v3
+
+    invoke-static {v1}, Lkotlin/collections/CollectionsKt;->listOf([Ljava/lang/Object;)Ljava/util/List;
+
+    move-result-object v13
+
+    :phh_wb_offer_as
+    and-int/lit8 v1, v0, 0x2
+
+    if-eqz v1, :phh_wb_offer_done
+
+    const/16 v14, 0x31
+
+    :phh_wb_offer_done
+"""
+
+
+def wb_offer_switch(body, signature):
+    """HD test switch: persist.sys.phhims.wb_offer picks the tracks (v13) and b=AS (v14)."""
+    if '"persist.sys.phhims.wb_offer"' in body:
+        return None
+    if body.count(WB_OFFER_OLD) != 1 or '"Outgoing INVITE codec offer: offerAmrWb="' not in body:
+        die("unexpected body in " + signature)
+    return body.replace(WB_OFFER_OLD, WB_OFFER_NEW)
+
+
+NB_LINES_OLD = """    check-cast v9, Ljava/lang/Iterable;
+
+    invoke-static {v1, v9}, Lkotlin/collections/CollectionsKt;->addAll(Ljava/util/Collection;Ljava/lang/Iterable;)Z
+
+    .line 147
+"""
+
+NB_LINES_NEW = """    check-cast v9, Ljava/lang/Iterable;
+
+    invoke-static {v2}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+
+    move-result-object v10
+
+    invoke-interface {v7, v10}, Ljava/util/List;->contains(Ljava/lang/Object;)Z
+
+    move-result v10
+
+    if-eqz v10, :phh_skip_nb_lines
+
+    invoke-static {v1, v9}, Lkotlin/collections/CollectionsKt;->addAll(Ljava/util/Collection;Ljava/lang/Iterable;)Z
+
+    :phh_skip_nb_lines
+    .line 147
+"""
+
+
+def nb_lines_follow_tracks(body, signature):
+    """HD test switch: the AMR-NB rtpmap/fmtp lines are only written when the m= line offers AMR-NB
+    (v7 = allTracks, v2 = amrNbTrack; v10 is dead here, the fmtp prefix was consumed above)."""
+    if "Ljava/util/List;->contains(Ljava/lang/Object;)Z" in body:
+        return None
+    if body.count(NB_LINES_OLD) != 1 or '" telephone-event/8000"' not in body:
+        die("unexpected body in " + signature)
+    return body.replace(NB_LINES_OLD, NB_LINES_NEW)
+
+
 # (smali file, method signature line or None for the whole class, edit function)
 EDITS = [
     (
@@ -520,6 +629,17 @@ EDITS = [
         "me/phh/ims/PhhMmTelFeature$createCallSession$2$3.smali",
         ".method public final invoke(Ljava/lang/Object;Ljava/util/Map;)V",
         ringback_direction,
+    ),
+    (
+        "me/phh/sip/SipOutgoingInviteSdp.smali",
+        ".method private final buildMediaOffer(Ljava/lang/String;Z)Lme/phh/sip/OutgoingInviteSdpMediaOffer;",
+        wb_offer_switch,
+    ),
+    (
+        "me/phh/sip/SipOutgoingInviteSdp.smali",
+        ".method private final buildGenericBody(Ljava/net/DatagramSocket;Lme/phh/sip/OutgoingInviteSdpMediaOffer;"
+        "Ljava/lang/String;Ljava/lang/String;ZZ)[B",
+        nb_lines_follow_tracks,
     ),
 ]
 
