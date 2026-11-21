@@ -15,7 +15,7 @@ Experimental. Tested so far:
 
 - **o2 Germany (262-07):** Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud, Android 17), KernelSU v3.3.1 in the kernel, SELinux enforcing, with a dedicated IMS APN. In daily use since v0.2.2-o2.
 - **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), KernelSU 3.3.1 with the Shadow kernel, v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3.
-- **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.8. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. Calls use normal quality instead of HD, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4 (confirmed); with v0.3.8 outgoing calls ring with one tone instead of two (confirmed).
+- **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.8. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. HD voice works between VIVACOM phones in both directions; calls with A1 use normal quality, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4 (confirmed); with v0.3.8 outgoing calls ring with one tone instead of two (confirmed).
 
 The details below refer to the o2 setup.
 
@@ -70,7 +70,7 @@ Before v0.3.5 it could show the state from before a reboot during the first minu
 
 ## Known issues
 
-- **No HD voice on VIVACOM:** PhhIms offers HD voice (AMR-WB) first, but VIVACOM answers outgoing calls with normal quality (AMR-NB), and on incoming calls it converts, so the S20 FE shows HD while the other phone does not. This happens with the tester's phone on A1 and also with a VIVACOM number that gets HD with other phones. The same module gets HD on outgoing calls with o2 and ONDO. Why VIVACOM picks normal quality for PhhIms is not known yet.
+- **No HD voice between VIVACOM and A1:** Calls between the tester's S20 FE and another VIVACOM phone use HD voice in both directions, with the HD icon on both phones. Calls with his family on A1 stay in normal quality: VIVACOM answers PhhIms' HD offer with AMR-NB, and on incoming calls it converts, so the S20 FE shows HD while the A1 phone does not. Whether a stock phone with the same SIM gets HD with A1 is still being checked; if not, it is the connection between the two networks and not the module.
 - **Outgoing call without audio** (ONDO tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet. Since v0.3.3 such a call ends normally instead of hanging.
 - **Speakerphone switching takes about a second** after tapping the button: Android moves the running call audio to the other device. The module is not involved in that.
 - The fix for the late, silent outgoing calls is a workaround in the module (see [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10), fix 2); the proper fix belongs in the ROM's audio HAL.
