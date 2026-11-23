@@ -8,7 +8,8 @@
 # address" message since the last successful registration), nopcscf_first (epoch of the first one).
 IMS_STATE=/data/adb/phhims-volte.ims
 
-# logcat -e patterns, matched against the whole radio log line, for the lines ims_update understands
+# logcat -e patterns (unanchored: -e searches the whole message text, and the null-IMSI exception
+# is part of a longer multi-line message) for the lines ims_update understands
 IMS_LOG_RE='\[[0-9]+\] handleIms(Registered|Registering|Unregistered):.*|IMS SIP (registered|registering), reporting.*|Reporting IMS deregistered.*|\[[0-9]+\] handleFeatureCapabilityChanged: MmTel Capabilities.*|No P-CSCF and all fallbacks failed.*|java\.lang\.NullPointerException: imsi must not be null.*'
 
 ims_write() { # key value: replace one key in the state file

@@ -1,6 +1,6 @@
 # PhhIms VoLTE for the Galaxy S20 FE (r8q)
 
-KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. It started as an o2 Germany (Telefónica) version of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)** and now runs with several carriers and ROMs; seven faults in the setup and in PhhIms are fixed along the way (see [Fixed faults](#fixed-faults)). **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
+KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Galaxy S20 FE (r8q), using the open-source IMS stack PhhIms. It started as an o2 Germany (Telefónica) version of **[buddi0812/r8q-volte-phhims](https://github.com/buddi0812/r8q-volte-phhims)** and now runs with several carriers and ROMs; eight faults in the setup and in PhhIms are fixed along the way (see [Fixed faults](#fixed-faults)). **Testers are wanted**: other carriers, other ROMs and Android 16, see [Testers wanted](#testers-wanted).
 
 ## Credits
 
@@ -8,6 +8,7 @@ KernelSU / Magisk module that brings VoLTE and SMS over IMS to the Snapdragon Ga
 - **PhhIms**: Pierre-Hugues Husson ([phhusson/ims](https://github.com/phhusson/ims)) and the [krazey/ims](https://github.com/krazey/ims) contributors
 - **Maintainer**: [Silvertax](https://github.com/Silvertax): o2 adaptation, the fixes since v0.2, status button, builds
 - **Testers** on ONDO (Mongolia) and VIVACOM (Bulgaria): their logs found the faults fixed in v0.3.3, v0.3.4, v0.3.6 and v0.3.8
+- **Contributors**: [undekasteam](https://github.com/undekasteam): restart of PhhIms after an early-boot null IMSI on dual-SIM setups (v0.3.9), tested on Turkcell
 
 ## Status
 
@@ -16,12 +17,14 @@ Experimental. Tested so far:
 - **o2 Germany (262-07):** Galaxy S20 FE SM-G780G, unofficial LineageOS 24.0 (r8q Cloud, Android 17), KernelSU v3.3.1 in the kernel, SELinux enforcing, with a dedicated IMS APN. In daily use since v0.2.2-o2.
 - **ONDO Mongolia (428-33), reported by a tester:** SM-G781N, Lunaris AOSP (Android 16), KernelSU 3.3.1 with the Shadow kernel, v0.3.2. IMS registers and calls work in both directions once an IMS APN is added. The stuck call screen seen there is fixed in v0.3.3.
 - **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.8. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. HD voice works between VIVACOM phones in both directions; calls with A1 use normal quality, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4 (confirmed); with v0.3.8 outgoing calls ring with one tone instead of two (confirmed).
+- **A1 Bulgaria (284-01), reported by the same tester:** same phone, v0.3.8. IMS registers once the ROM's default APNs are restored, and outgoing calls go over VoLTE. Incoming calls arrive over 3G instead, see [Known issues](#known-issues).
+- **Turkcell Turkey (286-01), reported by a contributor:** SM-G780G, official LineageOS 24.0 nightly (Android 17), Magisk 28.1. IMS registers and VoLTE calls work once the `ims` APN is added. On dual-SIM boots PhhIms could start before the SIM was loaded and stay unregistered; fixed in v0.3.9.
 
 The details below refer to the o2 setup.
 
 - **Worked:** IMS registration, VoLTE calls in both directions, SMS over IMS, mobile data during calls, speakerphone (from v0.3.6), re-registration after reboot
 - **Not available:** Wi-Fi calling, video calls
-- **Fixed:** seven faults so far, see [Fixed faults](#fixed-faults).
+- **Fixed:** eight faults so far, see [Fixed faults](#fixed-faults).
 - **How far this is tested:** with v0.2.2-o2, incoming and outgoing calls still went over VoLTE 13 hours after boot, and the registration was refreshed on schedule. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
 - **Magisk:** not tested yet; the o2 and ONDO setups above use KernelSU. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
 
@@ -71,6 +74,7 @@ Before v0.3.5 it could show the state from before a reboot during the first minu
 ## Known issues
 
 - **No HD voice between VIVACOM and A1:** Calls between the tester's S20 FE and another VIVACOM phone use HD voice in both directions, with the HD icon on both phones. Calls with his family on A1 stay in normal quality: VIVACOM answers PhhIms' HD offer with AMR-NB, and on incoming calls it converts, so the S20 FE shows HD while the A1 phone does not. Whether a stock phone with the same SIM gets HD with A1 is still being checked; if not, it is the connection between the two networks and not the module.
+- **Incoming calls on A1 arrive over 3G:** A1 delivers incoming calls to this phone over 3G instead of VoLTE (CS fallback), so IMS drops during the call and registers again afterwards. Outgoing calls use VoLTE. The likely cause is the modem: Android tries to tell it that IMS is registered, but the S20 FE's radio does not offer that interface (`updateImsRegistrationInfo ... service IMS is not available` in the radio log), so the modem keeps reporting a preference for 3G calls, which A1 follows. o2 and VIVACOM deliver calls over VoLTE regardless. Changing this would need a modem setting, which is not planned.
 - **Outgoing call without audio** (ONDO tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Why the audio was missing is not known yet. Since v0.3.3 such a call ends normally instead of hanging.
 - **Speakerphone switching takes about a second** after tapping the button: Android moves the running call audio to the other device. The module is not involved in that.
 - The fix for the late, silent outgoing calls is a workaround in the module (see [Changes in v0.2-o2](#changes-in-v02-o2-2026-11-10), fix 2); the proper fix belongs in the ROM's audio HAL.
@@ -88,10 +92,11 @@ These probably affect anyone running PhhIms on this phone without the system UID
 | 5 | Other phone stayed in the call after hanging up an incoming call first | v0.3.4 | yes (VIVACOM) |
 | 6 | Speakerphone button did nothing | v0.3.6 | yes (VIVACOM) |
 | 7 | Two ringback tones at once on outgoing calls (the network's and the phone's own) | v0.3.8 | yes (VIVACOM) |
+| 8 | On dual-SIM boots PhhIms could start before the SIM was loaded and stay unregistered (`imsi must not be null`) | v0.3.9 | yes (Turkcell) |
 
 ## Testers wanted
 
-The goal is VoLTE on the r8q with as many custom ROMs and carriers as possible. So far it runs on three setups (see [Status](#status)). Every report helps, whether it works or not:
+The goal is VoLTE on the r8q with as many custom ROMs and carriers as possible. So far it runs on five setups (see [Status](#status)). Every report helps, whether it works or not:
 
 - **Other carriers:** nothing in the fixes depends on the carrier, and the bundled PhhIms applies a persistent VoLTE carrier-config override for any SIM on its own (`ensureVolteCarrierConfig` in buddi0812's patch), so other carriers may well work already. A carrier that does not work yet can often be added once its log shows what it expects.
 - **Other ROMs:** any AOSP-based ROM on Android 17 or 16 (LineageOS, Lunaris, PixelOS, …). buddi0812's original module was made on PixelOS 17.
@@ -116,6 +121,13 @@ The carrier list in `overlays/cc/res/xml/vendor.xml` additionally enables VoLTE 
   su -c "logcat -d -b radio | sed -E 's/[0-9]{7,}/NUM/g' > /sdcard/Download/volte-radio.txt"
   ```
   Look it over before posting it publicly.
+
+## Changes in v0.3.9 (2026-11-23)
+
+**PhhIms unregistered after some dual-SIM boots** (contributed by undekasteam, tested on Turkcell). `SipHandler` reads the IMSI once, when it is created (`private val imsi = subTelephonyManager.subscriberId`). On dual-SIM boots, PhhIms can start about 3 seconds before the SIM records are loaded, so the IMSI stays empty for the whole process and every registration attempt fails with `java.lang.NullPointerException: imsi must not be null`.
+
+- Fix: `service.sh` watches the radio log for that exception. If it comes from the running PhhIms process, it waits up to 15 seconds for `gsm.sim.state` to report `LOADED` and then restarts PhhIms, which reads the IMSI again. Before the SIM is loaded (for example while the PIN is not entered yet) nothing is restarted; the next exception tries again. The status button never restarts anything. Each restart is noted in the module log.
+- The radio log filters in `service.sh` are no longer anchored with `^…$`: the exception is part of a longer, multi-line message, which an anchored pattern does not match. The lines are still checked by tag and text afterwards.
 
 ## Changes in v0.3.8 (2026-11-20)
 
