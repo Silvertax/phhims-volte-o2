@@ -1,4 +1,3 @@
-# IMS registration tracking, sourced by service.sh and action.sh (v0.3, 2026-11-12).
 # Not every ROM dumps the IMS registration state ("dumpsys phone" on the test ROM does not), so
 # service.sh follows the radio log and keeps the latest state in $IMS_STATE, which outlives the
 # log buffer. Sources: the framework's ImsPhone (every registration change goes through it) and
@@ -9,14 +8,42 @@
 IMS_STATE=/data/adb/phhims-volte.ims
 
 # logcat -e pattern (message text only) for the lines ims_update understands
-IMS_LOG_RE='\[[0-9]+\] handleIms(Registered|Registering|Unregistered):.*|IMS SIP (registered|registering), reporting.*|Reporting IMS deregistered.*|\[[0-9]+\] handleFeatureCapabilityChanged: MmTel Capabilities.*|No P-CSCF and all fallbacks failed.*'
+IMS_LOG_RE='\[[0-9]+\] handleIms(Registered|Registering|Unregistered):.*|IMS SIP (registered|registering), reporting.*|Reporting IMS deregistered.*|\[[0-9]+\] handleFeatureCapabilityChanged: MmTel Capabilities.*|No P-CSCF and all fallbacks failed.*|java\.lang\.NullPointerException: imsi must not be null.*'
 
 ims_write() { # key value: replace one key in the state file
   { grep -v "^$1=" "$IMS_STATE" 2>/dev/null; echo "$1=$2"; } > "$IMS_STATE.tmp" && mv "$IMS_STATE.tmp" "$IMS_STATE"
 }
 
+restart_phhims_for_null_imsi() {
+  err_pid="$1"
+  cur_pid=$(pidof me.phh.ims 2>/dev/null)
+  [ -n "$cur_pid" ] && [ "$err_pid" = "$cur_pid" ] || return 0
+
+  # Wait up to 15s for inserted SIMs to finish loading IMSI records
+  i=0
+  while [ "$i" -lt 15 ]; do
+    case "$(getprop gsm.sim.state)" in
+      *NOT_READY*|*READY*|*PIN_REQUIRED*|*PUK_REQUIRED*) sleep 1 ;;
+      *LOADED*) break ;;
+      *) sleep 1 ;;
+    esac
+    i=$((i + 1))
+  done
+
+  cur_pid=$(pidof me.phh.ims 2>/dev/null)
+  if [ -n "$cur_pid" ] && [ "$err_pid" = "$cur_pid" ]; then
+    kill -9 "$cur_pid" 2>/dev/null
+    echo "$(date '+%F %T') restarted me.phh.ims (pid $cur_pid) after early-boot null IMSI" >> /data/adb/phhims-volte.log
+    sleep 4
+  fi
+}
+
 ims_update() { # one threadtime log line
   case "$1" in
+    *"imsi must not be null"*)
+      set -- $1
+      restart_phhims_for_null_imsi "$3"
+      return ;;
     *"handleImsRegistered:"*|*"IMS SIP registered, reporting"*) st=registered ;;
     *"handleImsRegistering:"*|*"IMS SIP registering, reporting"*) st=registering ;;
     *"handleImsUnregistered:"*|*"Reporting IMS deregistered"*) st="NOT registered" ;;
