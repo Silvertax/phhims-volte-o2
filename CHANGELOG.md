@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.9 (2026-11-23)
+
+- Fixed: on some dual-SIM boots PhhIms started before the SIM was loaded and never registered with IMS until it was restarted by hand. The module now restarts PhhIms once the SIM is loaded. Contributed by undekasteam, tested with Turkcell (Turkey).
+- New tested setups: Turkcell (Turkey) and A1 (Bulgaria). On A1, incoming calls arrive over 3G; see Known issues in the README.
+
 ## v0.3.8 (2026-11-20)
 
 - Fixed: two ringing tones at once while an outgoing call rang, on networks that send their own ringback tone (seen on VIVACOM, Bulgaria). The phone played its own tone on top of the network's. Now the network's tone replaces the phone's own as soon as it arrives; networks without their own tone (o2, ONDO) keep the phone's tone as before. Found in a tester's log; the module patches PhhIms.
