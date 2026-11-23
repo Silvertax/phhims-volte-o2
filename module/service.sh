@@ -63,11 +63,14 @@ set_slot_prop() {
 }
 (
   held=
+  IMS_RESTART_ON_NULL_IMSI=1  # allow the null-IMSI restart from the service loop only
   while true; do
     # IMS registration so far (it usually happens before this script runs), then follow the log
-    logcat -d -b radio -e "^($IMS_LOG_RE)\$" 2>/dev/null | while read -r line; do ims_update "$line"; done
-    # -e matches the message text only, not the tag; the tag is checked below.
-    logcat -b radio -T 1 -e "^([0-9]+ createCallSession|Closing call|$IMS_LOG_RE)\$" 2>/dev/null |
+    # logcat -e matches the whole formatted line (timestamp, pid, tag, message), not just the
+    # message text; anchoring with ^...$ made every pattern fail, so the null-IMSI recovery never
+    # ran. Keep the patterns unanchored.
+    logcat -d -b radio -e "$IMS_LOG_RE" 2>/dev/null | while read -r line; do ims_update "$line"; done
+    logcat -b radio -T 1 -e "([0-9]+ createCallSession|Closing call|$IMS_LOG_RE)" 2>/dev/null |
     while read -r line; do
       ims_update "$line"
       case "$line" in
