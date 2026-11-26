@@ -1,0 +1,50 @@
+diff --git a/app/src/main/java/me/phh/sip/SipHandler.kt b/app/src/main/java/me/phh/sip/SipHandler.kt
+index 193061c..97a86a2 100644
+--- a/app/src/main/java/me/phh/sip/SipHandler.kt
++++ b/app/src/main/java/me/phh/sip/SipHandler.kt
+@@ -5675,6 +5675,7 @@ fun onWfcDisabled(reason: String) {
+             if (confirmedOutgoingCall != null) {
+                 confirmedOutgoingCall.outgoingRtpReceived.set(false)
+                 Rlog.d(TAG, SipOutgoingInviteFinalAckState.finalInviteAnswerClearsEarlyMediaGateLog(finalInviteCallId))
++                startMediaWithoutFinalSdp()
+                 scheduleOutgoingPostAnswerRtpTimeout(finalInviteCallId)
+                 maybeNotifyOutgoingCallConnected(
+                     confirmedOutgoingCall,
+@@ -6313,6 +6314,18 @@ fun onWfcDisabled(reason: String) {
+     }
+ 
+ 
++    // The answer to the INVITE's SDP offer came in a reliable 18x (with PRACK), so the 200 OK has no
++    // SDP (RFC 3262). The early dialog already holds the codec and the remote RTP address; without
++    // this, no media thread runs, no RTP flows either way, and the post-answer RTP timeout ends the
++    // call 2 s after the other side picked up. A 183 already started the threads, so this is a no-op then.
++    private fun startMediaWithoutFinalSdp() {
++        if (threadsStarted.compareAndSet(false, true)) {
++            Rlog.d(TAG, "Final answer without SDP: starting outgoing media from the early-dialog SDP answer")
++            callDecodeThread()
++            callEncodeThread()
++        }
++    }
++
+     private fun startOutgoingMediaForNonPrecondition183IfNeeded(
+         response: SipResponse,
+         isPrecondition: Boolean,
+diff --git a/app/src/main/java/me/phh/sip/SipOutgoingInviteResponseGuards.kt b/app/src/main/java/me/phh/sip/SipOutgoingInviteResponseGuards.kt
+index 498071f..4ce52f2 100644
+--- a/app/src/main/java/me/phh/sip/SipOutgoingInviteResponseGuards.kt
++++ b/app/src/main/java/me/phh/sip/SipOutgoingInviteResponseGuards.kt
+@@ -223,7 +223,13 @@ internal object SipOutgoingInviteProgressResponses {
+         val progressHasSdp = response.headers["content-type"]?.getOrNull(0)
+             ?.equals("application/sdp", ignoreCase = true) == true
+ 
+-        if (!progressCseq.contains("INVITE", ignoreCase = true) || progressHasSdp) return null
++        if (!progressCseq.contains("INVITE", ignoreCase = true)) return null
++        // A 180 Ringing that carries the SDP answer (sent reliably, with PRACK) still means the other
++        // phone is ringing: report it, or Android shows "dialing" with no ringback until the answer.
++        if (progressHasSdp) {
++            if (response.statusCode != 180) return null
++            Rlog.d(logTag, "Outgoing 180 Ringing carries the SDP answer; reporting it as progressing")
++        }
+ 
+         Rlog.d(
+             logTag,
