@@ -19,6 +19,8 @@ Experimental. Tested so far:
 - **VIVACOM Bulgaria (284-03), reported by a tester:** SM-G781B, LineageOS 24.0 nightly (Android 17), v0.3.3 to v0.3.8. IMS registers and calls work in both directions over VoLTE; the speakerphone works with v0.3.6. HD voice works between VIVACOM phones in both directions; calls with A1 use normal quality, see [Known issues](#known-issues). The caller staying in the call after a local hangup is fixed in v0.3.4 (confirmed); with v0.3.8 outgoing calls ring with one tone instead of two (confirmed).
 - **A1 Bulgaria (284-01), reported by the same tester:** same phone, v0.3.8. IMS registers once the ROM's default APNs are restored, and outgoing calls go over VoLTE. Incoming calls arrive over 3G instead, see [Known issues](#known-issues).
 - **Turkcell Turkey (286-01), reported by a contributor:** SM-G780G, official LineageOS 24.0 nightly (Android 17), Magisk 28.1. IMS registers and VoLTE calls work once the `ims` APN is added. On dual-SIM boots PhhIms could start before the SIM was loaded and stay unregistered; fixed in v0.3.9.
+- **Vodafone Turkey (286-02), reported by a tester:** LineageOS 24.0 (Android 17), SukiSU. VoLTE calls in both directions and SMS work over 24 hours. The speakerphone can be switched on outgoing calls but not on incoming ones, see [Known issues](#known-issues).
+- **Reliance Jio India (405-870), reported by a tester:** SM-G781B, official LineageOS 24.0 nightly (Android 17), KernelSU, v0.3.9. No APN had to be added (the ROM's Jio APNs include `ims`), and PhhIms uses its built-in Jio profile. IMS registration, calls in both directions, SMS, airplane mode, reboot and the periodic re-registration all work. IMS only registers on LTE, not on 5G standalone, and calls use normal quality, see [Known issues](#known-issues).
 
 The details below refer to the o2 setup.
 
@@ -26,7 +28,7 @@ The details below refer to the o2 setup.
 - **Not available:** Wi-Fi calling, video calls
 - **Fixed:** nine faults so far, see [Fixed faults](#fixed-faults).
 - **How far this is tested:** with v0.2.2-o2, incoming and outgoing calls still went over VoLTE 13 hours after boot, and the registration was refreshed on schedule. The single 2G fallback noted under v0.2-o2 fits the fault corrected in v0.2.2-o2; there is no log of that call.
-- **Magisk:** not tested yet; the o2 and ONDO setups above use KernelSU. The zip installs in the Magisk app as is, and the module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific, so it should behave the same.
+- **Magisk:** works on the Turkcell setup (Magisk 28.1); the others use KernelSU or a fork of it. The module mounts its files itself (overlayfs in `post-fs-data.sh`) without anything KernelSU-specific.
 
 ## Requirements
 
@@ -67,12 +69,16 @@ From v0.3 the module has an **Action** button in the module list of KernelSU and
 - the effective `carrier_volte_available_bool` and which config layer sets it
 - whether the registration refresh is scheduled, when it is due and when it last ran
 - outgoing VoLTE calls since boot and failed call setups in the radio log
+- from v0.3.10, a hint when IMS is not registered because the phone is on 5G standalone
 - a verdict: `OK`, `WAIT`, `CHECK` or `PROBLEM`
 
 Before v0.3.5 it could show the state from before a reboot during the first minute after boot. The report is also saved to `/sdcard/Download/phhims-volte-status.txt`. It contains no phone numbers, so a screenshot or the file can be posted as it is.
 
 ## Known issues
 
+- **No IMS on 5G standalone (NR SA):** PhhIms has no voice over 5G (VoNR). On a 5G standalone network (seen on Jio True5G) Android reports voice as out of service, and PhhIms never registers (`not ready for IMS after service state callback: state=1` in the radio log). Set the preferred network type to LTE (Settings, Network & internet, SIMs, Preferred network type); the Jio tester used `cmd phone set-allowed-network-types-for-users -s 0 1000001000000000000` (LTE and LTE-CA), which survives reboots. 5G non-standalone, where the phone shows 5G but voice runs over LTE, is not affected. From v0.3.10 the status button says so when IMS is not registered on 5G standalone.
+- **No HD voice on Jio:** Jio offers AMR-WB only in octet-aligned mode (`octet-align=1`), and PhhIms only supports the bandwidth-efficient mode, so it falls back to AMR-NB in both directions. Support for octet-aligned AMR-WB is being looked into.
+- **Speakerphone does not switch on incoming calls** (Vodafone Turkey tester): it works on outgoing calls since v0.3.6. PhhIms may be taking over the call's audio mode on incoming calls the same way it did on outgoing ones before v0.3.6; this is being looked into.
 - **No HD voice between VIVACOM and A1:** Calls between the tester's S20 FE and another VIVACOM phone use HD voice in both directions, with the HD icon on both phones. Calls with his family on A1 stay in normal quality: VIVACOM answers PhhIms' HD offer with AMR-NB, and on incoming calls it converts, so the S20 FE shows HD while the A1 phone does not. Whether a stock phone with the same SIM gets HD with A1 is still being checked; if not, it is the connection between the two networks and not the module.
 - **Incoming calls on A1 arrive over 3G:** A1 delivers incoming calls to this phone over 3G instead of VoLTE (CS fallback), so IMS drops during the call and registers again afterwards. Outgoing calls use VoLTE. The likely cause is the modem: Android tries to tell it that IMS is registered, but the S20 FE's radio does not offer that interface (`updateImsRegistrationInfo ... service IMS is not available` in the radio log), so the modem keeps reporting a preference for 3G calls, which A1 follows. o2 and VIVACOM deliver calls over VoLTE regardless. Changing this would need a modem setting, which is not planned.
 - **Outgoing call without audio** (ONDO tester, once): the network answered, but no audio arrived within 2 seconds, so PhhIms ended the call. Since v0.3.3 such a call ends normally instead of hanging. There is no radio log of the call setup; it may have been fault 9 (fixed in v0.3.10), which looks the same.
@@ -97,7 +103,7 @@ These probably affect anyone running PhhIms on this phone without the system UID
 
 ## Testers wanted
 
-The goal is VoLTE on the r8q with as many custom ROMs and carriers as possible. So far it runs on five setups (see [Status](#status)). Every report helps, whether it works or not:
+The goal is VoLTE on the r8q with as many custom ROMs and carriers as possible. So far it runs on seven setups (see [Status](#status)). Every report helps, whether it works or not:
 
 - **Other carriers:** nothing in the fixes depends on the carrier, and the bundled PhhIms applies a persistent VoLTE carrier-config override for any SIM on its own (`ensureVolteCarrierConfig` in buddi0812's patch), so other carriers may well work already. A carrier that does not work yet can often be added once its log shows what it expects.
 - **Other ROMs:** any AOSP-based ROM on Android 17 or 16 (LineageOS, Lunaris, PixelOS, …). buddi0812's original module was made on PixelOS 17.

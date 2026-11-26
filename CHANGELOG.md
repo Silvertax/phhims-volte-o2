@@ -3,6 +3,8 @@
 ## v0.3.10 (2026-11-26)
 
 - Fixed: some outgoing calls stayed on "dialing" without a ringing tone, and the other side heard nothing when they picked up; the call ended about 2 seconds later. Some o2 servers describe the call's audio already in the "ringing" message and leave it out of the "answered" message, which is allowed; PhhIms only switched on microphone and speaker when the "answered" message carried it. It now also starts the audio from the ringing message, and such calls show "ringing" with a ringing tone. Airplane mode on and off helped before, because it often gets you a different o2 server. Found in my own radio log; the module patches PhhIms.
+- Status button: when IMS is not registered because the phone is on 5G standalone, it now says so and how to switch to LTE. PhhIms has no voice over 5G, so it cannot register there (seen on Jio).
+- New tested setups: Vodafone (Turkey) and Reliance Jio (India).
 
 ## v0.3.9 (2026-11-23)
 

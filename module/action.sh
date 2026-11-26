@@ -102,6 +102,10 @@ elif [ "$feature" != declared ]; then
   verdict="PROBLEM: the IMS feature is not declared, so Android does not start IMS. See the module log."
 elif [ -z "$regs" ] && [ "$up" -lt 180 ]; then
   verdict="WAIT: the phone started less than 3 minutes ago. Tap again in a minute."
+elif [ "$regs" != registered ] && [ "$net" = NR ]; then
+  # 5G standalone: PhhIms has no voice over NR (VoNR), so Android reports voice out of service
+  # and PhhIms never registers there (seen on Jio True5G).
+  verdict="PROBLEM: the phone is on 5G standalone (NR), where PhhIms cannot register: it has no voice over 5G (VoNR). Set the preferred network type to LTE (Settings, Network & internet, SIMs). Details: README, Known issues."
 elif [ "$regs" != registered ] && [ -n "$nopcscf" ] && [ "$nopcscf_age" -ge 120 ]; then
   verdict="PROBLEM: the network gives no IMS server address (P-CSCF), so IMS cannot register and calls do not use VoLTE. Usually a separate IMS APN is missing: add an APN with APN \"ims\" and APN type \"ims\" (protocol IPv4/IPv6), remove \"ims\" from the type of your internet APN, then toggle airplane mode. Details: README, IMS APN."
 elif [ "$regs" = registering ] && [ "$age" -ge 300 ]; then
