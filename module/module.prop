@@ -1,7 +1,7 @@
 id=phhims_volte
 name=PhhIms VoLTE (r8q)
-version=v0.3.9
-versionCode=18
+version=v0.3.10
+versionCode=19
 updateJson=https://raw.githubusercontent.com/Silvertax/phhims-volte-o2/main/update.json
 author=Silvertax, based on buddi0812's r8q-volte-phhims
 description=Open-source IMS (PhhIms) for VoLTE and SMS over IMS on the Galaxy S20 FE Snapdragon (r8q), Android 17 and 16. Tested with o2 (DE), ONDO (MN), VIVACOM and A1 (BG) and Turkcell (TR); testers wanted. Action button shows the VoLTE status. Boot-loop protected, log: /data/adb/phhims-volte.log

@@ -41,6 +41,15 @@
 # DIRECTION_SEND_RECEIVE and Telephony stops (or never starts) its tone. Without early media,
 # nothing changes. Source equivalent: patches/0006-network-ringback-replaces-local.patch.
 #
+# v0.3.10, outgoing calls stay on "dialing" and end 2 s after the other side answers: some o2
+# P-CSCFs send the SDP answer in a reliable 180 Ringing (with PRACK) and the 200 OK without SDP,
+# which RFC 3262 allows. PhhIms starts its media threads only from a 183 or from a 200 OK with SDP,
+# so no RTP flows either way and the post-answer RTP timeout ends the call. A 180 with SDP was also
+# never reported as progressing, so Android showed "dialing" with no ringback. Fix: a 200 OK
+# without SDP starts the media threads if they are not running yet (from the early-dialog answer),
+# and a 180 with SDP is reported as progressing like one without.
+# Source equivalent: patches/0007-media-on-final-answer-without-sdp.patch.
+#
 #   SMALI_DIR=dir/with/baksmali,smali,dexlib2,...jars tools/patch-phhims-dex.py in.apk out.apk
 #
 # Exit 0: patched, 3: already patched (out.apk not written), anything else: error.
@@ -477,6 +486,117 @@ def ringback_direction(body, signature):
     return body.replace(DIRECTION_OLD, DIRECTION_NEW)
 
 
+# v0.3.10: SipHandler.startMediaWithoutFinalSdp, the same start as the 183 path.
+FINAL_SDP_HELPER = """
+.method private final phhStartMediaWithoutFinalSdp()V
+    .registers 9
+
+    iget-object v0, p0, Lme/phh/sip/SipHandler;->threadsStarted:Ljava/util/concurrent/atomic/AtomicBoolean;
+
+    const/4 v1, 0x0
+
+    const/4 v2, 0x1
+
+    invoke-virtual {v0, v1, v2}, Ljava/util/concurrent/atomic/AtomicBoolean;->compareAndSet(ZZ)Z
+
+    move-result v0
+
+    if-eqz v0, :phh_done
+
+    const-string v0, "PHH SipHandler"
+
+    const-string v1, "Final answer without SDP: starting outgoing media from the early-dialog SDP answer"
+
+    invoke-static {v0, v1}, Landroid/telephony/Rlog;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    invoke-virtual {p0}, Lme/phh/sip/SipHandler;->callDecodeThread()V
+
+    const-wide/16 v2, 0x0
+
+    const/4 v4, 0x0
+
+    const/4 v5, 0x0
+
+    const/4 v6, 0x7
+
+    const/4 v7, 0x0
+
+    move-object v1, p0
+
+    invoke-static/range {v1 .. v7}, Lme/phh/sip/SipHandler;->callEncodeThread$default(Lme/phh/sip/SipHandler;JLjava/lang/String;Lme/phh/sip/SipHandler$Call;ILjava/lang/Object;)V
+
+    :phh_done
+    return-void
+.end method
+"""
+
+
+def final_sdp_helper(text, rel):
+    """v0.3.10: adds phhStartMediaWithoutFinalSdp to SipHandler."""
+    if ".method private final phhStartMediaWithoutFinalSdp()V" in text:
+        return None
+    if ".field private final threadsStarted:Ljava/util/concurrent/atomic/AtomicBoolean;" not in text:
+        die("threadsStarted not found in " + rel)
+    return text.rstrip("\n") + "\n" + FINAL_SDP_HELPER
+
+
+FINAL_SDP_OLD = """    invoke-virtual {v3, p1}, Lme/phh/sip/SipOutgoingInviteFinalAckState;->finalInviteAnswerClearsEarlyMediaGateLog(Ljava/lang/String;)Ljava/lang/String;
+
+    move-result-object v3
+
+    invoke-static {v1, v3}, Landroid/telephony/Rlog;->d(Ljava/lang/String;Ljava/lang/String;)I
+"""
+
+FINAL_SDP_NEW = FINAL_SDP_OLD + """
+    invoke-direct {p0}, Lme/phh/sip/SipHandler;->phhStartMediaWithoutFinalSdp()V
+"""
+
+
+def final_sdp_hook(body, signature):
+    """v0.3.10: a 200 OK without SDP starts the media threads (no-op if a 183 already did)."""
+    if "phhStartMediaWithoutFinalSdp" in body:
+        return None
+    if body.count(FINAL_SDP_OLD) != 1 or "if-nez p3, :cond_" not in body:
+        die("unexpected body in " + signature)
+    return body.replace(FINAL_SDP_OLD, FINAL_SDP_NEW)
+
+
+RINGING_SDP_LOG = "Outgoing 180 Ringing carries the SDP answer; reporting it as progressing"
+
+# v5 is progressHasSdp; without SDP the original code jumps to the report, with SDP it returns null.
+RINGING_SDP_OLD = re.compile(r"    if-eqz v5, (:cond_\w+)\n\n(    goto/16 :goto_\w+\n)")
+
+RINGING_SDP_NEW = """    if-eqz v5, {report}
+
+    invoke-virtual {{p2}}, Lme/phh/sip/SipResponse;->getStatusCode()I
+
+    move-result v6
+
+    const/16 v7, 0xb4
+
+    if-ne v6, v7, :phh_ringing_sdp_drop
+
+    const-string v6, "{log}"
+
+    invoke-static {{p1, v6}}, Landroid/telephony/Rlog;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    goto {report}
+
+    :phh_ringing_sdp_drop
+{drop}"""
+
+
+def ringing_sdp_progress(body, signature):
+    """v0.3.10: a 180 with SDP is reported as progressing; other 18x with SDP are still dropped.
+    v6 and v7 are reassigned before their next use; p1 is the log tag."""
+    if RINGING_SDP_LOG in body:
+        return None
+    if len(RINGING_SDP_OLD.findall(body)) != 1 or '.local v5, "progressHasSdp":Z' not in body:
+        die("unexpected body in " + signature)
+    return RINGING_SDP_OLD.sub(
+        lambda m: RINGING_SDP_NEW.format(report=m.group(1), log=RINGING_SDP_LOG, drop=m.group(2)), body)
+
+
 # (smali file, method signature line or None for the whole class, edit function)
 EDITS = [
     (
@@ -520,6 +640,18 @@ EDITS = [
         "me/phh/ims/PhhMmTelFeature$createCallSession$2$3.smali",
         ".method public final invoke(Ljava/lang/Object;Ljava/util/Map;)V",
         ringback_direction,
+    ),
+    ("me/phh/sip/SipHandler.smali", None, final_sdp_helper),
+    (
+        "me/phh/sip/SipHandler.smali",
+        ".method private final handleOutgoingFinalInvitePostAckState(Ljava/lang/String;ZZ)Ljava/lang/Boolean;",
+        final_sdp_hook,
+    ),
+    (
+        "me/phh/sip/SipOutgoingInviteProgressResponses.smali",
+        ".method public final progressNotification(Ljava/lang/String;Lme/phh/sip/SipResponse;)"
+        "Lme/phh/sip/OutgoingProgressNotification;",
+        ringing_sdp_progress,
     ),
 ]
 
